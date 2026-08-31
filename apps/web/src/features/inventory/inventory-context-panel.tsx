@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InventoryAdjustRequest, InventoryContextResponse } from "@commerceops/types";
 import {
   fetchInventoryContext,
   fetchInventoryHistory,
+  InventoryApiError,
   submitInventoryAdjustment,
 } from "../../lib/inventory-api";
 import { queryKeys } from "../../lib/query-keys";
@@ -30,7 +31,15 @@ type ValidationResult = {
   nextAvailable: number | null;
 };
 
-function validateDraft(context: InventoryContextResponse, draft: AdjustmentDraft): ValidationResult {
+type SubmitFeedback = {
+  tone: "success" | "error";
+  message: string;
+};
+
+export function validateDraft(
+  context: InventoryContextResponse,
+  draft: AdjustmentDraft,
+): ValidationResult {
   const errors: string[] = [];
 
   if (!draft.inventoryLevelId) {
@@ -94,7 +103,11 @@ export function InventoryContextPanel() {
     note: "",
   });
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [submitStateMessage, setSubmitStateMessage] = useState<string>("");
+  const [feedback, setFeedback] = useState<SubmitFeedback | null>(null);
+
+  // Held stable so retrying the same draft reuses the key and the server can
+  // dedupe it. Cleared when the draft changes or an adjustment is recorded.
+  const idempotencyKeyRef = useRef<string | null>(null);
   const preview = useMemo(() => {
     if (!contextQuery.data) {
       return {
@@ -124,10 +137,19 @@ export function InventoryContextPanel() {
   const selectedLevel = context.levels.find((level) => level.id === draft.inventoryLevelId);
 
   function updateDraft<K extends keyof AdjustmentDraft>(key: K, value: AdjustmentDraft[K]) {
+    // A changed draft is a different logical operation, so it needs its own key.
+    idempotencyKeyRef.current = null;
     setDraft((current) => ({
       ...current,
       [key]: value,
     }));
+  }
+
+  async function refreshInventoryData() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventoryContext }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventoryHistory }),
+    ]);
   }
 
   function handleValidateSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -135,12 +157,15 @@ export function InventoryContextPanel() {
 
     const activeContext = contextQuery.data;
     if (!activeContext) {
-      setSubmitStateMessage("Inventory context is not available.");
+      setFeedback({ tone: "error", message: "Inventory context is not available." });
       return;
     }
 
     if (!activeContext.viewer.canAdjust) {
-      setSubmitStateMessage("You do not have permission to submit adjustments.");
+      setFeedback({
+        tone: "error",
+        message: "You do not have permission to submit adjustments.",
+      });
       return;
     }
 
@@ -148,13 +173,20 @@ export function InventoryContextPanel() {
     setValidationErrors(result.errors);
 
     if (result.errors.length > 0) {
-      setSubmitStateMessage("Fix validation errors before continuing.");
+      setFeedback({ tone: "error", message: "Fix validation errors before continuing." });
       return;
     }
 
     if (!selectedLevel) {
-      setSubmitStateMessage("Select a valid inventory level before submitting.");
+      setFeedback({
+        tone: "error",
+        message: "Select a valid inventory level before submitting.",
+      });
       return;
+    }
+
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = crypto.randomUUID();
     }
 
     const request: InventoryAdjustRequest = {
@@ -162,29 +194,64 @@ export function InventoryContextPanel() {
       reasonCode: draft.reasonCode,
       deltaQty: result.parsedDelta as number,
       expectedVersion: selectedLevel.expectedVersion,
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: idempotencyKeyRef.current,
       note: draft.note.trim().length > 0 ? draft.note.trim() : undefined,
     };
 
     adjustMutation.mutate(request, {
       onSuccess: async (response) => {
         setValidationErrors([]);
-        setSubmitStateMessage(
-          `Adjustment recorded. New available: ${response.newAvailable} (version ${response.updatedVersion}).`,
-        );
+        idempotencyKeyRef.current = null;
+        setFeedback({
+          tone: "success",
+          message: `Adjustment recorded. New available: ${response.newAvailable} (version ${response.updatedVersion}).`,
+        });
         setDraft((current) => ({
           ...current,
           deltaInput: "",
           note: "",
         }));
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: queryKeys.inventoryContext }),
-          queryClient.invalidateQueries({ queryKey: queryKeys.inventoryHistory }),
-        ]);
+        await refreshInventoryData();
       },
-      onError: (error) => {
-        const message = error instanceof Error ? error.message : "Unable to submit adjustment";
-        setSubmitStateMessage(message);
+      onError: async (error) => {
+        const code = error instanceof InventoryApiError ? error.code : "unknown_error";
+
+        if (code === "version_conflict") {
+          // The cached expectedVersion is stale, so every retry would fail until refetched.
+          await refreshInventoryData();
+          idempotencyKeyRef.current = null;
+          setFeedback({
+            tone: "error",
+            message:
+              "This stock level changed since you loaded it. The latest figures have been reloaded — review them and submit again.",
+          });
+          return;
+        }
+
+        if (code === "duplicate_idempotency_key") {
+          await refreshInventoryData();
+          idempotencyKeyRef.current = null;
+          setDraft((current) => ({ ...current, deltaInput: "", note: "" }));
+          setFeedback({
+            tone: "success",
+            message: "This adjustment was already recorded. The latest figures have been reloaded.",
+          });
+          return;
+        }
+
+        if (code === "insufficient_stock") {
+          await refreshInventoryData();
+          setFeedback({
+            tone: "error",
+            message: "That adjustment would take available stock below zero.",
+          });
+          return;
+        }
+
+        setFeedback({
+          tone: "error",
+          message: error instanceof Error ? error.message : "Unable to submit adjustment.",
+        });
       },
     });
   }
@@ -209,7 +276,10 @@ export function InventoryContextPanel() {
           <legend className="text-base font-semibold">Stock adjustment draft</legend>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800" htmlFor="inventory-level">
+            <label
+              className="mb-1 block text-sm font-medium text-gray-800"
+              htmlFor="inventory-level"
+            >
               Inventory level
             </label>
             <select
@@ -262,7 +332,10 @@ export function InventoryContextPanel() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800" htmlFor="adjustment-note">
+            <label
+              className="mb-1 block text-sm font-medium text-gray-800"
+              htmlFor="adjustment-note"
+            >
               Note (optional)
             </label>
             <textarea
@@ -304,7 +377,11 @@ export function InventoryContextPanel() {
         ) : null}
 
         {validationErrors.length > 0 ? (
-          <div aria-live="polite" className="rounded border border-red-200 bg-red-50 p-3" role="alert">
+          <div
+            aria-live="polite"
+            className="rounded border border-red-200 bg-red-50 p-3"
+            role="alert"
+          >
             <p className="text-sm font-medium text-red-700">Validation errors</p>
             <ul className="mt-2 list-disc pl-5 text-sm text-red-700">
               {validationErrors.map((error) => (
@@ -314,9 +391,17 @@ export function InventoryContextPanel() {
           </div>
         ) : null}
 
-        {submitStateMessage ? (
-          <p aria-live="polite" className="text-sm text-gray-700">
-            {submitStateMessage}
+        {feedback ? (
+          <p
+            aria-live={feedback.tone === "error" ? "assertive" : "polite"}
+            className={
+              feedback.tone === "error"
+                ? "rounded border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800"
+                : "rounded border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800"
+            }
+            role={feedback.tone === "error" ? "alert" : "status"}
+          >
+            {feedback.message}
           </p>
         ) : null}
       </form>
@@ -341,12 +426,16 @@ export function InventoryContextPanel() {
                 <p className="mt-1">
                   {item.sku} @ {item.locationId} · {item.previousAvailable} → {item.newAvailable}
                 </p>
-                <p className="mt-1 text-xs text-gray-500">{new Date(item.createdAt).toLocaleString()}</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {new Date(item.createdAt).toLocaleString()}
+                </p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-gray-600">No inventory adjustments have been recorded yet.</p>
+          <p className="mt-2 text-sm text-gray-600">
+            No inventory adjustments have been recorded yet.
+          </p>
         )}
       </div>
     </div>

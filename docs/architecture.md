@@ -26,11 +26,12 @@ This document captures the bootstrap architecture approved for the first executi
 - Envelope model: success + error envelope primitives
 - OpenAPI route: /api/docs
 
-## Authentication baseline (development)
+## Authentication baseline
 
-- Web uses dev sign-in route and cookie session for seeded users.
+- Web signs in at /login and stores the session token in an httpOnly cookie.
+- Users self-register at /register and always receive the `customer` role.
 - API resolves request auth context from a bearer JWT issued by /api/v1/auth/login.
-- BOOT-005 is intentionally non-production auth.
+- Staff roles (admin, inventory_manager, read_only) are provisioned by the seed script.
 
 ## Database baseline
 
