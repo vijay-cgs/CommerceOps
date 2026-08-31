@@ -2,10 +2,18 @@
 
 import Link from "next/link";
 import { useCart } from "../../components/storefront/cart-provider";
-import { formatCurrency } from "../../lib/storefront-data";
+import { formatCents } from "../../lib/money";
 
 export default function CartPage() {
-  const { items, itemCount, subtotal, updateQuantity, removeFromCart, clearCart } = useCart();
+  const {
+    items,
+    itemCount,
+    subtotalCents,
+    isCatalogLoading,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+  } = useCart();
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -26,7 +34,9 @@ export default function CartPage() {
           ) : null}
         </div>
 
-        {items.length === 0 ? (
+        {isCatalogLoading ? (
+          <p className="text-slate-600">Loading your cart…</p>
+        ) : items.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
             <p className="text-lg font-semibold">Your cart is empty.</p>
             <Link
@@ -48,7 +58,9 @@ export default function CartPage() {
                     <div className={`h-20 w-20 rounded-2xl bg-gradient-to-br ${product.accent}`} />
                     <div>
                       <p className="font-semibold text-slate-900">{product.name}</p>
-                      <p className="text-sm text-slate-600">{formatCurrency(product.price)} each</p>
+                      <p className="text-sm text-slate-600">
+                        {formatCents(product.priceCents)} each
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -88,15 +100,15 @@ export default function CartPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>{formatCurrency(subtotal)}</span>
+                  <span>{formatCents(subtotalCents)}</span>
                 </div>
               </div>
-              <button
-                className="mt-8 w-full rounded-full bg-slate-900 px-4 py-3 font-medium text-white"
-                type="button"
+              <Link
+                href="/checkout"
+                className="mt-8 block w-full rounded-full bg-slate-900 px-4 py-3 text-center font-medium text-white"
               >
                 Proceed to checkout
-              </button>
+              </Link>
             </aside>
           </div>
         )}

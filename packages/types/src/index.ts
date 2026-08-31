@@ -2,6 +2,60 @@ export type EntityId = string;
 
 export type UserRole = "admin" | "inventory_manager" | "read_only" | "customer";
 
+export type ProductView = {
+  id: string;
+  slug: string;
+  sku: string;
+  name: string;
+  description: string;
+  priceCents: number;
+  tag: string;
+  category: string;
+  accent: string;
+  features: string[];
+};
+
+export type ProductListResponse = {
+  products: ProductView[];
+};
+
+export type OrderLineInput = {
+  slug: string;
+  quantity: number;
+};
+
+export type PlaceOrderRequest = {
+  items: OrderLineInput[];
+  shippingName: string;
+  shippingAddress: string;
+  shippingCity: string;
+  shippingPostalCode: string;
+  idempotencyKey: string;
+};
+
+export type OrderItemView = {
+  sku: string;
+  name: string;
+  unitPriceCents: number;
+  quantity: number;
+  lineTotalCents: number;
+};
+
+export type OrderView = {
+  id: string;
+  orderNumber: string;
+  status: "confirmed" | "cancelled";
+  subtotalCents: number;
+  shippingCents: number;
+  totalCents: number;
+  createdAt: string;
+  items: OrderItemView[];
+};
+
+export type OrderListResponse = {
+  orders: OrderView[];
+};
+
 export type InventoryLevelView = {
   id: string;
   sku: string;

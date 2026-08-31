@@ -1,33 +1,43 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { Product } from "../../lib/storefront-data";
-import { formatCurrency, getProductBySlug } from "../../lib/storefront-data";
+import { useQuery } from "@tanstack/react-query";
+import type { ProductView } from "@commerceops/types";
+import { fetchProducts } from "../../lib/catalog-api";
+import { queryKeys } from "../../lib/query-keys";
+import { formatCents } from "../../lib/money";
 
-const STORAGE_KEY = "commerceops.cart.v1";
-const MAX_QUANTITY = 12;
+const STORAGE_KEY = "commerceops.cart.v2";
+const MAX_QUANTITY = 99;
+
+type CartEntry = {
+  slug: string;
+  quantity: number;
+};
 
 type CartItem = {
-  product: Product;
+  product: ProductView;
   quantity: number;
 };
 
 type CartContextValue = {
+  entries: CartEntry[];
   items: CartItem[];
   itemCount: number;
-  subtotal: number;
-  addToCart: (product: Product, quantity?: number) => void;
+  subtotalCents: number;
+  isCatalogLoading: boolean;
+  addToCart: (product: ProductView, quantity?: number) => void;
   updateQuantity: (productSlug: string, delta: number) => void;
   removeFromCart: (productSlug: string) => void;
   clearCart: () => void;
-  formatMoney: (value: number) => string;
+  formatMoney: (cents: number) => string;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-// Only slug and quantity are stored, so prices and copy always come from the
-// current catalog and stale product snapshots can never be resurrected.
-function readStoredCart(): CartItem[] {
+// Only slug and quantity are stored, so prices always come from the catalog and
+// a tampered or stale localStorage value can never influence what is charged.
+function readStoredCart(): CartEntry[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
 
@@ -49,9 +59,7 @@ function readStoredCart(): CartItem[] {
         return [];
       }
 
-      const product = getProductBySlug(slug);
-
-      return product ? [{ product, quantity: Math.min(quantity, MAX_QUANTITY) }] : [];
+      return [{ slug, quantity: Math.min(quantity, MAX_QUANTITY) }];
     });
   } catch {
     return [];
@@ -59,12 +67,18 @@ function readStoredCart(): CartItem[] {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [entries, setEntries] = useState<CartEntry[]>([]);
   const [hydrated, setHydrated] = useState(false);
+
+  const productsQuery = useQuery({
+    queryKey: queryKeys.products,
+    queryFn: fetchProducts,
+    staleTime: 60_000,
+  });
 
   // Read after mount so the server and first client render agree.
   useEffect(() => {
-    setItems(readStoredCart());
+    setEntries(readStoredCart());
     setHydrated(true);
   }, []);
 
@@ -74,69 +88,63 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(items.map((item) => ({ slug: item.product.slug, quantity: item.quantity }))),
-      );
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
     } catch {
       // Storage can be full or blocked; the in-memory cart still works.
     }
-  }, [items, hydrated]);
+  }, [entries, hydrated]);
 
-  const addToCart = (product: Product, quantity = 1) => {
-    setItems((current) => {
-      const existing = current.find((item) => item.product.slug === product.slug);
+  const value = useMemo<CartContextValue>(() => {
+    const catalog = new Map((productsQuery.data ?? []).map((product) => [product.slug, product]));
 
-      if (existing) {
-        return current.map((item) =>
-          item.product.slug === product.slug
-            ? { ...item, quantity: Math.min(item.quantity + quantity, MAX_QUANTITY) }
-            : item,
-        );
-      }
-
-      return [...current, { product, quantity: Math.min(quantity, MAX_QUANTITY) }];
+    const items = entries.flatMap((entry) => {
+      const product = catalog.get(entry.slug);
+      return product ? [{ product, quantity: entry.quantity }] : [];
     });
-  };
 
-  const updateQuantity = (productSlug: string, delta: number) => {
-    setItems((current) =>
-      current
-        .map((item) =>
-          item.product.slug === productSlug
-            ? { ...item, quantity: Math.min(item.quantity + delta, MAX_QUANTITY) }
-            : item,
-        )
-        .filter((item) => item.quantity > 0),
-    );
-  };
-
-  const removeFromCart = (productSlug: string) => {
-    setItems((current) => current.filter((item) => item.product.slug !== productSlug));
-  };
-
-  const clearCart = () => setItems([]);
-
-  const subtotal = useMemo(
-    () => items.reduce((total, item) => total + item.product.price * item.quantity, 0),
-    [items],
-  );
-
-  const itemCount = useMemo(() => items.reduce((total, item) => total + item.quantity, 0), [items]);
-
-  const value = useMemo<CartContextValue>(
-    () => ({
+    return {
+      entries,
       items,
-      itemCount,
-      subtotal,
-      addToCart,
-      updateQuantity,
-      removeFromCart,
-      clearCart,
-      formatMoney: formatCurrency,
-    }),
-    [items, itemCount, subtotal],
-  );
+      // Counted from entries so the badge is right before the catalog loads.
+      itemCount: entries.reduce((total, entry) => total + entry.quantity, 0),
+      subtotalCents: items.reduce(
+        (total, item) => total + item.product.priceCents * item.quantity,
+        0,
+      ),
+      isCatalogLoading: productsQuery.isLoading,
+      addToCart: (product, quantity = 1) => {
+        setEntries((current) => {
+          const existing = current.find((entry) => entry.slug === product.slug);
+
+          if (existing) {
+            return current.map((entry) =>
+              entry.slug === product.slug
+                ? { ...entry, quantity: Math.min(entry.quantity + quantity, MAX_QUANTITY) }
+                : entry,
+            );
+          }
+
+          return [...current, { slug: product.slug, quantity: Math.min(quantity, MAX_QUANTITY) }];
+        });
+      },
+      updateQuantity: (productSlug, delta) => {
+        setEntries((current) =>
+          current
+            .map((entry) =>
+              entry.slug === productSlug
+                ? { ...entry, quantity: Math.min(entry.quantity + delta, MAX_QUANTITY) }
+                : entry,
+            )
+            .filter((entry) => entry.quantity > 0),
+        );
+      },
+      removeFromCart: (productSlug) => {
+        setEntries((current) => current.filter((entry) => entry.slug !== productSlug));
+      },
+      clearCart: () => setEntries([]),
+      formatMoney: formatCents,
+    };
+  }, [entries, productsQuery.data, productsQuery.isLoading]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

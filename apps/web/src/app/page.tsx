@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { ProductCard } from "../components/storefront/product-card";
-import { useCart } from "../components/storefront/cart-provider";
 import { useAuthUser } from "../components/providers/auth-provider";
 import { canAccessInventory } from "../lib/roles";
-import { products } from "../lib/storefront-data";
+import { useProducts } from "../lib/use-products";
 
 export default function HomePage() {
-  const { itemCount } = useCart();
   const auth = useAuthUser();
-  const featuredProducts = products.slice(0, 3);
+  const { data: products } = useProducts();
+  const featuredProducts = (products ?? []).slice(0, 3);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">

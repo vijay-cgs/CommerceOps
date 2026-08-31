@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import type { Product } from "../../lib/storefront-data";
-import { formatCurrency } from "../../lib/storefront-data";
+import type { ProductView } from "@commerceops/types";
+import { formatCents } from "../../lib/money";
 import { useCart } from "./cart-provider";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product }: { product: ProductView }) {
   const { addToCart } = useCart();
 
   return (
@@ -21,7 +21,7 @@ export function ProductCard({ product }: { product: Product }) {
           <Link href={`/product/${product.slug}`} className="text-xl font-semibold text-slate-900">
             {product.name}
           </Link>
-          <span className="text-lg font-bold">{formatCurrency(product.price)}</span>
+          <span className="text-lg font-bold">{formatCents(product.priceCents)}</span>
         </div>
         <p className="text-sm text-slate-600">{product.description}</p>
         <button

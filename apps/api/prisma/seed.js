@@ -32,9 +32,72 @@ async function seedStaffAccounts() {
   console.log(`\u2713 Seeded ${STAFF_ACCOUNTS.length} staff accounts`);
 }
 
+const CATALOG = [
+  {
+    slug: "aerolite-backpack",
+    sku: "BACKPACK-001",
+    name: "AeroLite Backpack",
+    priceCents: 12900,
+    tag: "Best seller",
+    category: "Travel",
+    description:
+      "A lightweight, weather-ready backpack built for city commutes and weekend escapes.",
+    accent: "from-sky-500 to-cyan-500",
+    features: ["Water resistant shell", "Laptop sleeve", "Hidden security pocket"],
+  },
+  {
+    slug: "coredesk-lamp",
+    sku: "LAMP-001",
+    name: "CoreDesk Lamp",
+    priceCents: 8900,
+    tag: "New arrival",
+    category: "Workspace",
+    description:
+      "An adjustable LED desk lamp that brings a warm, focused glow to every work session.",
+    accent: "from-violet-500 to-fuchsia-500",
+    features: ["Touch dimmer", "USB-C power", "Low-glare optics"],
+  },
+  {
+    slug: "terra-bottle",
+    sku: "BOTTLE-001",
+    name: "Terra Bottle",
+    priceCents: 3400,
+    tag: "Daily essential",
+    category: "Lifestyle",
+    description: "A stainless steel insulated bottle that keeps drinks cold for up to 24 hours.",
+    accent: "from-emerald-500 to-teal-500",
+    features: ["Double wall insulated", "Leak-proof lid", "BPA free"],
+  },
+  {
+    slug: "stride-running-shoes",
+    sku: "SHOES-001",
+    name: "Stride Runner",
+    priceCents: 14900,
+    tag: "Performance",
+    category: "Fitness",
+    description:
+      "Responsive everyday running shoes designed for comfort, stability, and all-day motion.",
+    accent: "from-amber-500 to-orange-500",
+    features: ["Cushioned midsole", "Breathable mesh", "Grip-ready outsole"],
+  },
+];
+
+async function seedCatalog() {
+  for (const product of CATALOG) {
+    await prisma.product.upsert({
+      where: { slug: product.slug },
+      update: product,
+      create: product,
+    });
+  }
+
+  console.log(`\u2713 Seeded ${CATALOG.length} products`);
+}
+
 async function seed() {
   try {
     await seedStaffAccounts();
+    await seedCatalog();
 
     // Clear existing data
     await prisma.inventoryAdjustment.deleteMany({});
