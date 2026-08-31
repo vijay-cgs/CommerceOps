@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model InventoryLevel {
+  id               String   @id @default(cuid())
+  sku              String
+  locationId       String
+  availableQty     Int      @default(0)
+  reservedQty      Int      @default(0)
+  incomingQty      Int      @default(0)
+  expectedVersion  Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  adjustments      InventoryAdjustment[]
+
+  @@unique([sku, locationId])
+  @@index([locationId])
+}
+
+model InventoryAdjustment {
+  id                String   @id @default(cuid())
+  inventoryLevelId  String
+  reasonCode        String
+  deltaQty          Int
+  previousAvailable Int
+  newAvailable      Int
+  idempotencyKey    String
+  correlationId     String
+  actorUserId       String
+  createdAt         DateTime @default(now())
+
+  inventoryLevel    InventoryLevel @relation(fields: [inventoryLevelId], references: [id], onDelete: Restrict)
+
+  @@index([inventoryLevelId])
+  @@unique([idempotencyKey])
+}
+
+model AuditEvent {
+  id            String   @id @default(cuid())
+  entityType    String
+  entityId      String
+  action        String
+  actorUserId   String
+  correlationId String
+  occurredAt    DateTime @default(now())
+  metadataJson  String?
+
+  @@index([entityType, entityId])
+}

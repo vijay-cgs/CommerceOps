@@ -1,0 +1,6 @@
+{
+  "name": "@commerceops/config-eslint",
+  "private": true,
+  "version": "0.1.0",
+  "main": "index.cjs"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@commerceops/types",
+  "private": true,
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "echo \"BOOT-004: add shared type build\"",
+    "lint": "echo \"BOOT-006: add types lint\"",
+    "typecheck": "echo \"BOOT-006: add types typecheck\"",
+    "test": "echo \"BOOT-006: add types tests\""
+  }
+}
