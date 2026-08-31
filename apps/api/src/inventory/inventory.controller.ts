@@ -14,6 +14,30 @@ function canAdjustInventory(role: UserRole): boolean {
   return role === "admin" || role === "inventory_manager";
 }
 
+function canViewInventory(role: UserRole): boolean {
+  return role === "admin" || role === "inventory_manager" || role === "read_only";
+}
+
+function requireInventoryViewer(req: Request): Express.AuthContext {
+  const auth = req.authContext;
+
+  if (!auth) {
+    throw new HttpException(
+      { code: "unauthorized", message: "Authentication required" },
+      HttpStatus.UNAUTHORIZED,
+    );
+  }
+
+  if (!canViewInventory(auth.role)) {
+    throw new HttpException(
+      { code: "forbidden", message: "You are not authorized to view inventory" },
+      HttpStatus.FORBIDDEN,
+    );
+  }
+
+  return auth;
+}
+
 function validateAdjustmentPayload(payload: Partial<InventoryAdjustRequest>): string[] {
   const errors: string[] = [];
 
@@ -49,24 +73,10 @@ function validateAdjustmentPayload(payload: Partial<InventoryAdjustRequest>): st
 export class InventoryController {
   @Get("context")
   async getInventoryContext(@Req() req: Request): Promise<InventoryContextResponse> {
-    const auth = req.authContext;
-
-    if (!auth) {
-      return {
-        viewer: {
-          userId: "unknown",
-          role: "read_only",
-          canAdjust: false,
-        },
-        levels: [],
-      };
-    }
+    const auth = requireInventoryViewer(req);
 
     const levels = await prismaClient.inventoryLevel.findMany({
-      orderBy: [
-        { locationId: "asc" },
-        { sku: "asc" },
-      ],
+      orderBy: [{ locationId: "asc" }, { sku: "asc" }],
       take: 100,
     });
 
@@ -91,13 +101,7 @@ export class InventoryController {
 
   @Get("history")
   async getInventoryHistory(@Req() req: Request): Promise<InventoryAdjustmentHistoryResponse> {
-    const auth = req.authContext;
-
-    if (!auth) {
-      return {
-        items: [],
-      };
-    }
+    requireInventoryViewer(req);
 
     const adjustments = await prismaClient.inventoryAdjustment.findMany({
       orderBy: {
@@ -270,10 +274,7 @@ export class InventoryController {
         throw error;
       }
 
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError
-        && error.code === "P2002"
-      ) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         throw new HttpException(
           {
             code: "duplicate_idempotency_key",

@@ -30,17 +30,17 @@ This repository contains the CommerceOps bootstrap implementation through BOOT-0
 ## Quick start
 
 1. Install dependencies:
-	- pnpm install
+   - pnpm install
 2. Configure environment:
-	- copy .env.example .env
+   - copy .env.example .env
 3. Start database:
-	- pnpm db:up
+   - pnpm db:up
 4. Run migrations and seed:
-	- pnpm --filter @commerceops/api db:generate
-	- pnpm --filter @commerceops/api db:migrate
-	- pnpm --filter @commerceops/api db:seed
+   - pnpm --filter @commerceops/api db:generate
+   - pnpm --filter @commerceops/api db:migrate
+   - pnpm --filter @commerceops/api db:seed
 5. Start apps:
-	- pnpm dev
+   - pnpm dev
 
 ## Quality baseline commands
 
@@ -50,17 +50,27 @@ This repository contains the CommerceOps bootstrap implementation through BOOT-0
 - pnpm build
 - pnpm test:e2e
 
-## Development seed identities
+## Authentication
 
-- admin@commerceops.local (seed-admin-001)
-- inventory@commerceops.local (seed-inventory-001)
-- readonly@commerceops.local (seed-readonly-001)
+Shoppers register themselves at `/register` and always receive the `customer` role.
+
+Staff accounts are provisioned by the seed script. Set `SEED_STAFF_PASSWORD` in
+`apps/api/.env` and run `pnpm --filter @commerceops/api db:seed` to create:
+
+- admin@commerceops.local (`admin`)
+- inventory@commerceops.local (`inventory_manager`)
+- readonly@commerceops.local (`read_only`)
 
 Web sign-in route:
-- /auth/dev-sign-in
 
-API development identity header:
-- x-dev-user-id
+- /login
+
+API authentication:
+
+- `Authorization: Bearer <jwt>`
+
+`AUTH_JWT_SECRET` must be set to the same value in `apps/api/.env` and
+`apps/web/.env.local`, and must be at least 32 characters.
 
 ## BOOT-004 Database Baseline
 

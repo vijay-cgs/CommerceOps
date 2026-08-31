@@ -4,7 +4,7 @@ import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { HttpExceptionEnvelopeFilter } from "./common/filters/http-exception.filter";
-import { devAuthMiddleware } from "./common/middleware/dev-auth.middleware";
+import { authMiddleware } from "./common/middleware/auth.middleware";
 import { ResponseEnvelopeInterceptor } from "./common/interceptors/response-envelope.interceptor";
 import { correlationIdMiddleware } from "./common/middleware/correlation-id.middleware";
 
@@ -13,7 +13,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix("api/v1");
   app.use(correlationIdMiddleware);
-  app.use(devAuthMiddleware);
+  app.use(authMiddleware);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

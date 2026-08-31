@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthContext } from "../../../../lib/auth";
-
-const API_BASE_URL = process.env.COMMERCEOPS_API_URL ?? "http://localhost:3002";
+import { API_BASE_URL } from "../../../../lib/session";
 
 export async function GET() {
   const auth = await getAuthContext();
@@ -23,7 +22,7 @@ export async function GET() {
   const upstream = await fetch(`${API_BASE_URL}/api/v1/inventory/history`, {
     method: "GET",
     headers: {
-      "x-dev-user-id": auth.userId,
+      authorization: `Bearer ${auth.token}`,
     },
     cache: "no-store",
   });

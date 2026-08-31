@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { StorefrontHeader } from "../../components/storefront/storefront-header";
 import { useCart } from "../../components/storefront/cart-provider";
 import { formatCurrency } from "../../lib/storefront-data";
 
@@ -10,7 +9,6 @@ export default function CartPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <StorefrontHeader cartCount={itemCount} />
       <div className="mx-auto max-w-5xl px-6 py-10">
         <div className="mb-8 flex items-center justify-between gap-4">
           <div>
@@ -18,7 +16,11 @@ export default function CartPage() {
             <h1 className="mt-2 text-4xl font-black tracking-tight">Your basket</h1>
           </div>
           {items.length > 0 ? (
-            <button onClick={clearCart} className="text-sm font-medium text-slate-700" type="button">
+            <button
+              onClick={clearCart}
+              className="text-sm font-medium text-slate-700"
+              type="button"
+            >
               Clear cart
             </button>
           ) : null}
@@ -27,7 +29,10 @@ export default function CartPage() {
         {items.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
             <p className="text-lg font-semibold">Your cart is empty.</p>
-            <Link href="/products" className="mt-4 inline-block rounded-full bg-slate-900 px-5 py-3 text-white">
+            <Link
+              href="/products"
+              className="mt-4 inline-block rounded-full bg-slate-900 px-5 py-3 text-white"
+            >
               Continue shopping
             </Link>
           </div>
@@ -35,7 +40,10 @@ export default function CartPage() {
           <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
             <div className="space-y-4">
               {items.map(({ product, quantity }) => (
-                <div key={product.id} className="flex items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5">
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5"
+                >
                   <div className="flex items-center gap-4">
                     <div className={`h-20 w-20 rounded-2xl bg-gradient-to-br ${product.accent}`} />
                     <div>
@@ -44,14 +52,26 @@ export default function CartPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <button onClick={() => updateQuantity(product.slug, -1)} className="h-8 w-8 rounded-full border border-slate-300" type="button">
+                    <button
+                      onClick={() => updateQuantity(product.slug, -1)}
+                      className="h-8 w-8 rounded-full border border-slate-300"
+                      type="button"
+                    >
                       −
                     </button>
                     <span className="min-w-6 text-center font-medium">{quantity}</span>
-                    <button onClick={() => updateQuantity(product.slug, 1)} className="h-8 w-8 rounded-full border border-slate-300" type="button">
+                    <button
+                      onClick={() => updateQuantity(product.slug, 1)}
+                      className="h-8 w-8 rounded-full border border-slate-300"
+                      type="button"
+                    >
                       +
                     </button>
-                    <button onClick={() => removeFromCart(product.slug)} className="ml-2 text-sm font-medium text-red-600" type="button">
+                    <button
+                      onClick={() => removeFromCart(product.slug)}
+                      className="ml-2 text-sm font-medium text-red-600"
+                      type="button"
+                    >
                       Remove
                     </button>
                   </div>
@@ -71,7 +91,10 @@ export default function CartPage() {
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
               </div>
-              <button className="mt-8 w-full rounded-full bg-slate-900 px-4 py-3 font-medium text-white" type="button">
+              <button
+                className="mt-8 w-full rounded-full bg-slate-900 px-4 py-3 font-medium text-white"
+                type="button"
+              >
                 Proceed to checkout
               </button>
             </aside>

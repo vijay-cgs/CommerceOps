@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthContext } from "../../../../lib/auth";
-
-const API_BASE_URL = process.env.COMMERCEOPS_API_URL ?? "http://localhost:3002";
+import { API_BASE_URL } from "../../../../lib/session";
 
 export async function POST(request: Request) {
   const auth = await getAuthContext();
@@ -26,7 +25,7 @@ export async function POST(request: Request) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-dev-user-id": auth.userId,
+      authorization: `Bearer ${auth.token}`,
     },
     body: payload,
     cache: "no-store",

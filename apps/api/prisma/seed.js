@@ -1,11 +1,41 @@
 /* eslint-disable no-console */
 
 const { PrismaClient } = require("@prisma/client");
+const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
 
+const STAFF_ACCOUNTS = [
+  { email: "admin@commerceops.local", name: "Store Admin", role: "admin" },
+  { email: "inventory@commerceops.local", name: "Inventory Manager", role: "inventory_manager" },
+  { email: "readonly@commerceops.local", name: "Read-only Ops", role: "read_only" },
+];
+
+async function seedStaffAccounts() {
+  const password = process.env.SEED_STAFF_PASSWORD;
+
+  if (!password) {
+    console.log("- Skipped staff accounts (set SEED_STAFF_PASSWORD to seed them)");
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  for (const account of STAFF_ACCOUNTS) {
+    await prisma.user.upsert({
+      where: { email: account.email },
+      update: { name: account.name, role: account.role, passwordHash, isActive: true },
+      create: { ...account, passwordHash },
+    });
+  }
+
+  console.log(`\u2713 Seeded ${STAFF_ACCOUNTS.length} staff accounts`);
+}
+
 async function seed() {
   try {
+    await seedStaffAccounts();
+
     // Clear existing data
     await prisma.inventoryAdjustment.deleteMany({});
     await prisma.inventoryLevel.deleteMany({});

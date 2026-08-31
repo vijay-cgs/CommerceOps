@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
-import { DEV_AUTH_COOKIE_NAME } from "../../../lib/auth";
+import { clearSessionCookie } from "../../../lib/session";
 
-export async function GET(request: Request) {
+// POST only, so a cross-site GET cannot force a sign-out.
+export async function POST(request: Request) {
   const response = NextResponse.redirect(new URL("/", request.url));
-  response.cookies.set({
-    name: DEV_AUTH_COOKIE_NAME,
-    value: "",
-    maxAge: 0,
-    path: "/",
-  });
+  clearSessionCookie(response);
 
   return response;
 }

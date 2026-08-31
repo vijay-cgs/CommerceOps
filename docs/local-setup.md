@@ -34,21 +34,30 @@ pnpm --filter @commerceops/api db:seed
 pnpm dev
 
 Expected local ports:
+
 - web: 3000
 - api: 3001
 
-## 7) Development auth and seeded users
+## 7) Authentication and seeded users
 
-Web sign-in page:
-- /auth/dev-sign-in
+Web routes:
 
-Seeded users (no passwords required in this bootstrap flow):
-- Store Admin: admin@commerceops.local
-- Inventory Manager: inventory@commerceops.local
-- Read-only Ops: readonly@commerceops.local
+- /login
+- /register
 
-API identity header for development calls:
-- x-dev-user-id: seed-admin-001 | seed-inventory-001 | seed-readonly-001
+Self-registration always creates a `customer`. Staff accounts are created by the
+seed script when `SEED_STAFF_PASSWORD` is set in `apps/api/.env`:
+
+- Store Admin: admin@commerceops.local (`admin`)
+- Inventory Manager: inventory@commerceops.local (`inventory_manager`)
+- Read-only Ops: readonly@commerceops.local (`read_only`)
+
+API calls authenticate with:
+
+- `Authorization: Bearer <jwt>`
+
+Set `AUTH_JWT_SECRET` (32+ characters) to the same value in `apps/api/.env` and
+`apps/web/.env.local` so the web app can verify tokens the API issues.
 
 ## 8) Quality commands
 
