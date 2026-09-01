@@ -122,11 +122,11 @@ export function ProductForm({
       slug: draft.slug.trim(),
       name: draft.name.trim(),
       description: draft.description.trim(),
-      tag: draft.tag.trim(),
-      category: draft.category.trim(),
-      accent: draft.accent.trim(),
+      tag: draft.tag.trim() || "New",
+      category: draft.category.trim() || "General",
+      accent: draft.accent.trim() || "from-sky-500 to-cyan-500",
       features: draft.features
-        .split("\n")
+        .split(/[\n|]/)
         .map((line) => line.trim())
         .filter(Boolean),
       status: draft.status,
@@ -227,7 +227,7 @@ export function ProductForm({
       </div>
 
       <label className="mt-4 block text-sm font-medium text-slate-700">
-        Features, one per line
+        Features, one per line (or separated by |)
         <textarea
           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
           rows={3}

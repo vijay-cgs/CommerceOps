@@ -65,22 +65,24 @@ export class ProductUpsertDto {
   @MaxLength(2000)
   description!: string;
 
+  @IsOptional()
   @IsString()
   @MaxLength(60)
-  tag!: string;
+  tag?: string;
 
   @IsString()
   @MaxLength(60)
   category!: string;
 
+  @IsOptional()
   @IsString()
   @MaxLength(120)
-  accent!: string;
+  accent?: string;
 
   @IsArray()
-  @ArrayMaxSize(20)
+  @ArrayMaxSize(30)
   @IsString({ each: true })
-  @MaxLength(120, { each: true })
+  @MaxLength(500, { each: true })
   features!: string[];
 
   @IsIn(["draft", "active", "archived"])
