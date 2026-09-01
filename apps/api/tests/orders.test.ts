@@ -2,23 +2,23 @@ import { describe, expect, it } from "vitest";
 import { calculateShippingCents, mergeOrderLines } from "../src/orders/orders.service";
 
 describe("mergeOrderLines", () => {
-  it("collapses repeated slugs into a single line", () => {
+  it("collapses repeated SKUs into a single line", () => {
     const merged = mergeOrderLines([
-      { slug: "aerolite-backpack", quantity: 2 },
-      { slug: "terra-bottle", quantity: 1 },
-      { slug: "aerolite-backpack", quantity: 3 },
+      { sku: "BACKPACK-001", quantity: 2 },
+      { sku: "BOTTLE-001", quantity: 1 },
+      { sku: "BACKPACK-001", quantity: 3 },
     ]);
 
     expect(merged).toEqual([
-      { slug: "aerolite-backpack", quantity: 5 },
-      { slug: "terra-bottle", quantity: 1 },
+      { sku: "BACKPACK-001", quantity: 5 },
+      { sku: "BOTTLE-001", quantity: 1 },
     ]);
   });
 
-  it("leaves distinct slugs untouched", () => {
+  it("keeps sibling variants of one product separate", () => {
     const lines = [
-      { slug: "a", quantity: 1 },
-      { slug: "b", quantity: 2 },
+      { sku: "SHOES-001-9", quantity: 1 },
+      { sku: "SHOES-001-10", quantity: 2 },
     ];
 
     expect(mergeOrderLines(lines)).toEqual(lines);

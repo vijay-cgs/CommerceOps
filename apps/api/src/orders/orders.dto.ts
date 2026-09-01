@@ -14,8 +14,8 @@ import {
 
 export class OrderLineDto {
   @IsString()
-  @MaxLength(120)
-  slug!: string;
+  @MaxLength(60)
+  sku!: string;
 
   @IsInt()
   @Min(1)

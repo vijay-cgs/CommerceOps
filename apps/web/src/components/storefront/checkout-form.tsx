@@ -64,7 +64,7 @@ export function CheckoutForm({ defaultName }: { defaultName: string }) {
     }
 
     orderMutation.mutate({
-      items: items.map((item) => ({ slug: item.product.slug, quantity: item.quantity })),
+      items: items.map((item) => ({ sku: item.variant.sku, quantity: item.quantity })),
       shippingName: shippingName.trim(),
       shippingAddress: shippingAddress.trim(),
       shippingCity: shippingCity.trim(),
@@ -175,11 +175,13 @@ export function CheckoutForm({ defaultName }: { defaultName: string }) {
 
             <ul className="mt-5 space-y-2 text-sm text-slate-700">
               {items.map((item) => (
-                <li key={item.product.id} className="flex justify-between gap-3">
+                <li key={item.variant.sku} className="flex justify-between gap-3">
                   <span>
-                    {item.product.name} × {item.quantity}
+                    {item.product.name}
+                    {item.variant.optionValue ? ` (${item.variant.optionValue})` : ""} ×{" "}
+                    {item.quantity}
                   </span>
-                  <span>{formatCents(item.product.priceCents * item.quantity)}</span>
+                  <span>{formatCents(item.variant.priceCents * item.quantity)}</span>
                 </li>
               ))}
             </ul>

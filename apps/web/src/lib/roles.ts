@@ -6,6 +6,10 @@ export function canAccessInventory(role: UserRole): boolean {
   return INVENTORY_ROLES.includes(role);
 }
 
+export function canManageProducts(role: UserRole): boolean {
+  return role === "admin" || role === "inventory_manager";
+}
+
 export function formatRole(role: UserRole): string {
   switch (role) {
     case "admin":

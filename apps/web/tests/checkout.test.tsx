@@ -8,14 +8,24 @@ import type { ProductView } from "@commerceops/types";
 const backpack: ProductView = {
   id: "p1",
   slug: "aerolite-backpack",
-  sku: "BACKPACK-001",
   name: "AeroLite Backpack",
   description: "A backpack",
-  priceCents: 12900,
   tag: "Best seller",
   category: "Travel",
   accent: "from-sky-500 to-cyan-500",
   features: [],
+  status: "active",
+  optionName: null,
+  variants: [
+    {
+      id: "v1",
+      sku: "BACKPACK-001",
+      optionValue: null,
+      priceCents: 12900,
+      isActive: true,
+      availableQty: 10,
+    },
+  ],
 };
 
 vi.mock("../src/lib/catalog-api", () => ({
@@ -58,8 +68,8 @@ describe("checkout form", () => {
 
   it("prices the order from the catalog and adds shipping", async () => {
     window.localStorage.setItem(
-      "commerceops.cart.v2",
-      JSON.stringify([{ slug: "aerolite-backpack", quantity: 2 }]),
+      "commerceops.cart.v3",
+      JSON.stringify([{ sku: "BACKPACK-001", quantity: 2 }]),
     );
 
     renderCheckout();
@@ -74,8 +84,8 @@ describe("checkout form", () => {
 
   it("prefills the shipping name from the signed-in user", async () => {
     window.localStorage.setItem(
-      "commerceops.cart.v2",
-      JSON.stringify([{ slug: "aerolite-backpack", quantity: 1 }]),
+      "commerceops.cart.v3",
+      JSON.stringify([{ sku: "BACKPACK-001", quantity: 1 }]),
     );
 
     renderCheckout();
@@ -87,10 +97,10 @@ describe("checkout form", () => {
 
   it("ignores cart entries that are no longer in the catalog", async () => {
     window.localStorage.setItem(
-      "commerceops.cart.v2",
+      "commerceops.cart.v3",
       JSON.stringify([
-        { slug: "aerolite-backpack", quantity: 1 },
-        { slug: "discontinued-item", quantity: 5 },
+        { sku: "BACKPACK-001", quantity: 1 },
+        { sku: "DISCONTINUED-001", quantity: 5 },
       ]),
     );
 

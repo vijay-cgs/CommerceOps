@@ -2,21 +2,22 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { ProductView } from "@commerceops/types";
+import type { ProductVariantView, ProductView } from "@commerceops/types";
 import { fetchProducts } from "../../lib/catalog-api";
 import { queryKeys } from "../../lib/query-keys";
 import { formatCents } from "../../lib/money";
 
-const STORAGE_KEY = "commerceops.cart.v2";
+const STORAGE_KEY = "commerceops.cart.v3";
 const MAX_QUANTITY = 99;
 
 type CartEntry = {
-  slug: string;
+  sku: string;
   quantity: number;
 };
 
 type CartItem = {
   product: ProductView;
+  variant: ProductVariantView;
   quantity: number;
 };
 
@@ -26,17 +27,17 @@ type CartContextValue = {
   itemCount: number;
   subtotalCents: number;
   isCatalogLoading: boolean;
-  addToCart: (product: ProductView, quantity?: number) => void;
-  updateQuantity: (productSlug: string, delta: number) => void;
-  removeFromCart: (productSlug: string) => void;
+  addToCart: (variant: ProductVariantView, quantity?: number) => void;
+  updateQuantity: (sku: string, delta: number) => void;
+  removeFromCart: (sku: string) => void;
   clearCart: () => void;
   formatMoney: (cents: number) => string;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-// Only slug and quantity are stored, so prices always come from the catalog and
-// a tampered or stale localStorage value can never influence what is charged.
+// Only SKU and quantity are stored, so prices always come from the catalog and
+// a tampered or stale localStorage value cannot influence what is charged.
 function readStoredCart(): CartEntry[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -52,14 +53,14 @@ function readStoredCart(): CartEntry[] {
     }
 
     return parsed.flatMap((entry) => {
-      const slug = (entry as { slug?: unknown })?.slug;
+      const sku = (entry as { sku?: unknown })?.sku;
       const quantity = Number((entry as { quantity?: unknown })?.quantity);
 
-      if (typeof slug !== "string" || !Number.isInteger(quantity) || quantity < 1) {
+      if (typeof sku !== "string" || !Number.isInteger(quantity) || quantity < 1) {
         return [];
       }
 
-      return [{ slug, quantity: Math.min(quantity, MAX_QUANTITY) }];
+      return [{ sku, quantity: Math.min(quantity, MAX_QUANTITY) }];
     });
   } catch {
     return [];
@@ -95,11 +96,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [entries, hydrated]);
 
   const value = useMemo<CartContextValue>(() => {
-    const catalog = new Map((productsQuery.data ?? []).map((product) => [product.slug, product]));
+    const bySku = new Map<string, { product: ProductView; variant: ProductVariantView }>();
+
+    for (const product of productsQuery.data ?? []) {
+      for (const variant of product.variants) {
+        bySku.set(variant.sku, { product, variant });
+      }
+    }
 
     const items = entries.flatMap((entry) => {
-      const product = catalog.get(entry.slug);
-      return product ? [{ product, quantity: entry.quantity }] : [];
+      const match = bySku.get(entry.sku);
+      return match ? [{ ...match, quantity: entry.quantity }] : [];
     });
 
     return {
@@ -108,38 +115,38 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       // Counted from entries so the badge is right before the catalog loads.
       itemCount: entries.reduce((total, entry) => total + entry.quantity, 0),
       subtotalCents: items.reduce(
-        (total, item) => total + item.product.priceCents * item.quantity,
+        (total, item) => total + item.variant.priceCents * item.quantity,
         0,
       ),
       isCatalogLoading: productsQuery.isLoading,
-      addToCart: (product, quantity = 1) => {
+      addToCart: (variant, quantity = 1) => {
         setEntries((current) => {
-          const existing = current.find((entry) => entry.slug === product.slug);
+          const existing = current.find((entry) => entry.sku === variant.sku);
 
           if (existing) {
             return current.map((entry) =>
-              entry.slug === product.slug
+              entry.sku === variant.sku
                 ? { ...entry, quantity: Math.min(entry.quantity + quantity, MAX_QUANTITY) }
                 : entry,
             );
           }
 
-          return [...current, { slug: product.slug, quantity: Math.min(quantity, MAX_QUANTITY) }];
+          return [...current, { sku: variant.sku, quantity: Math.min(quantity, MAX_QUANTITY) }];
         });
       },
-      updateQuantity: (productSlug, delta) => {
+      updateQuantity: (sku, delta) => {
         setEntries((current) =>
           current
             .map((entry) =>
-              entry.slug === productSlug
+              entry.sku === sku
                 ? { ...entry, quantity: Math.min(entry.quantity + delta, MAX_QUANTITY) }
                 : entry,
             )
             .filter((entry) => entry.quantity > 0),
         );
       },
-      removeFromCart: (productSlug) => {
-        setEntries((current) => current.filter((entry) => entry.slug !== productSlug));
+      removeFromCart: (sku) => {
+        setEntries((current) => current.filter((entry) => entry.sku !== sku));
       },
       clearCart: () => setEntries([]),
       formatMoney: formatCents,

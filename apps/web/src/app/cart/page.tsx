@@ -49,23 +49,28 @@ export default function CartPage() {
         ) : (
           <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
             <div className="space-y-4">
-              {items.map(({ product, quantity }) => (
+              {items.map(({ product, variant, quantity }) => (
                 <div
-                  key={product.id}
+                  key={variant.sku}
                   className="flex items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5"
                 >
                   <div className="flex items-center gap-4">
                     <div className={`h-20 w-20 rounded-2xl bg-gradient-to-br ${product.accent}`} />
                     <div>
                       <p className="font-semibold text-slate-900">{product.name}</p>
+                      {variant.optionValue ? (
+                        <p className="text-sm text-slate-600">
+                          {product.optionName}: {variant.optionValue}
+                        </p>
+                      ) : null}
                       <p className="text-sm text-slate-600">
-                        {formatCents(product.priceCents)} each
+                        {formatCents(variant.priceCents)} each
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={() => updateQuantity(product.slug, -1)}
+                      onClick={() => updateQuantity(variant.sku, -1)}
                       className="h-8 w-8 rounded-full border border-slate-300"
                       type="button"
                     >
@@ -73,14 +78,14 @@ export default function CartPage() {
                     </button>
                     <span className="min-w-6 text-center font-medium">{quantity}</span>
                     <button
-                      onClick={() => updateQuantity(product.slug, 1)}
+                      onClick={() => updateQuantity(variant.sku, 1)}
                       className="h-8 w-8 rounded-full border border-slate-300"
                       type="button"
                     >
                       +
                     </button>
                     <button
-                      onClick={() => removeFromCart(product.slug)}
+                      onClick={() => removeFromCart(variant.sku)}
                       className="ml-2 text-sm font-medium text-red-600"
                       type="button"
                     >

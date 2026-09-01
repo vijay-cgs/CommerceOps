@@ -53,7 +53,8 @@ export default async function OrderConfirmationPage({
             {order.items.map((item) => (
               <li key={item.sku} className="flex justify-between gap-3 py-3 text-sm">
                 <span className="text-slate-700">
-                  {item.name} × {item.quantity}
+                  {item.name}
+                  {item.optionValue ? ` (${item.optionValue})` : ""} × {item.quantity}
                 </span>
                 <span className="font-medium">{formatCents(item.lineTotalCents)}</span>
               </li>

@@ -9,17 +9,17 @@ export function calculateShippingCents(subtotalCents: number): number {
   return subtotalCents > 0 ? SHIPPING_FLAT_CENTS : 0;
 }
 
-/** Collapses repeated slugs so the same product cannot bypass per-line limits. */
+/** Collapses repeated SKUs so the same variant cannot bypass per-line limits. */
 export function mergeOrderLines(
-  items: { slug: string; quantity: number }[],
-): { slug: string; quantity: number }[] {
+  items: { sku: string; quantity: number }[],
+): { sku: string; quantity: number }[] {
   const merged = new Map<string, number>();
 
   for (const item of items) {
-    merged.set(item.slug, (merged.get(item.slug) ?? 0) + item.quantity);
+    merged.set(item.sku, (merged.get(item.sku) ?? 0) + item.quantity);
   }
 
-  return [...merged.entries()].map(([slug, quantity]) => ({ slug, quantity }));
+  return [...merged.entries()].map(([sku, quantity]) => ({ sku, quantity }));
 }
 
 function generateOrderNumber(): string {
@@ -41,19 +41,24 @@ export async function placeOrder(
 
   try {
     return await prismaClient.$transaction(async (tx) => {
-      const products = await tx.product.findMany({
-        where: { slug: { in: lines.map((line) => line.slug) }, isActive: true },
+      const variants = await tx.productVariant.findMany({
+        where: {
+          sku: { in: lines.map((line) => line.sku) },
+          isActive: true,
+          product: { status: "active" },
+        },
+        include: { product: { select: { name: true } } },
       });
 
-      const productBySlug = new Map(products.map((product) => [product.slug, product]));
-      const missing = lines.filter((line) => !productBySlug.has(line.slug));
+      const variantBySku = new Map(variants.map((variant) => [variant.sku, variant]));
+      const missing = lines.filter((line) => !variantBySku.has(line.sku));
 
       if (missing.length > 0) {
         throw new HttpException(
           {
             code: "product_unavailable",
-            message: "One or more products are no longer available",
-            details: missing.map((line) => line.slug),
+            message: "One or more items are no longer available",
+            details: missing.map((line) => line.sku),
           },
           HttpStatus.BAD_REQUEST,
         );
@@ -63,14 +68,14 @@ export async function placeOrder(
       const itemRows: Prisma.OrderItemCreateManyOrderInput[] = [];
 
       for (const line of lines) {
-        const product = productBySlug.get(line.slug)!;
+        const variant = variantBySku.get(line.sku)!;
 
         // Price always comes from the catalog, never from the client payload.
-        const lineTotalCents = product.priceCents * line.quantity;
+        const lineTotalCents = variant.priceCents * line.quantity;
         subtotalCents += lineTotalCents;
 
         const level = await tx.inventoryLevel.findFirst({
-          where: { sku: product.sku },
+          where: { sku: variant.sku },
           orderBy: { locationId: "asc" },
         });
 
@@ -78,7 +83,7 @@ export async function placeOrder(
           throw new HttpException(
             {
               code: "out_of_stock",
-              message: `${product.name} is out of stock`,
+              message: `${variant.product.name} is out of stock`,
             },
             HttpStatus.CONFLICT,
           );
@@ -98,17 +103,18 @@ export async function placeOrder(
           throw new HttpException(
             {
               code: "insufficient_stock",
-              message: `Only ${level.availableQty} of ${product.name} remain in stock`,
+              message: `Only ${level.availableQty} of ${variant.product.name} remain in stock`,
             },
             HttpStatus.CONFLICT,
           );
         }
 
         itemRows.push({
-          productId: product.id,
-          sku: product.sku,
-          nameSnapshot: product.name,
-          unitPriceCents: product.priceCents,
+          variantId: variant.id,
+          sku: variant.sku,
+          nameSnapshot: variant.product.name,
+          optionSnapshot: variant.optionValue,
+          unitPriceCents: variant.priceCents,
           quantity: line.quantity,
           lineTotalCents,
         });
@@ -187,6 +193,7 @@ type OrderWithItems = {
   items: {
     sku: string;
     nameSnapshot: string;
+    optionSnapshot: string | null;
     unitPriceCents: number;
     quantity: number;
     lineTotalCents: number;
@@ -205,6 +212,7 @@ export function toOrderView(order: OrderWithItems): OrderView {
     items: order.items.map((item) => ({
       sku: item.sku,
       name: item.nameSnapshot,
+      optionValue: item.optionSnapshot,
       unitPriceCents: item.unitPriceCents,
       quantity: item.quantity,
       lineTotalCents: item.lineTotalCents,

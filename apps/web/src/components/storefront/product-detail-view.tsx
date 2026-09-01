@@ -1,12 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import type { ProductView } from "@commerceops/types";
 import { formatCents } from "../../lib/money";
 import { useCart } from "./cart-provider";
 
 export function ProductDetailView({ product }: { product: ProductView }) {
   const { addToCart } = useCart();
+  const sellable = product.variants.filter((variant) => variant.isActive);
+
+  const [selectedSku, setSelectedSku] = useState(
+    () => sellable.find((variant) => variant.availableQty > 0)?.sku ?? sellable[0]?.sku ?? "",
+  );
+
+  const selected = sellable.find((variant) => variant.sku === selectedSku);
+  const outOfStock = !selected || selected.availableQty < 1;
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -23,16 +32,58 @@ export function ProductDetailView({ product }: { product: ProductView }) {
             <h1 className="mt-3 text-4xl font-black text-slate-900">{product.name}</h1>
           </div>
 
-          <p className="text-3xl font-bold text-slate-900">{formatCents(product.priceCents)}</p>
+          <p className="text-3xl font-bold text-slate-900">
+            {selected ? formatCents(selected.priceCents) : "—"}
+          </p>
           <p className="text-lg text-slate-600">{product.description}</p>
+
+          {product.optionName && sellable.length > 1 ? (
+            <fieldset>
+              <legend className="text-sm font-semibold text-slate-800">{product.optionName}</legend>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {sellable.map((variant) => {
+                  const soldOut = variant.availableQty < 1;
+
+                  return (
+                    <button
+                      key={variant.sku}
+                      type="button"
+                      disabled={soldOut}
+                      aria-pressed={variant.sku === selectedSku}
+                      onClick={() => setSelectedSku(variant.sku)}
+                      className={`rounded-full border px-4 py-2 text-sm font-medium ${
+                        variant.sku === selectedSku
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-300 bg-white text-slate-800"
+                      } ${soldOut ? "cursor-not-allowed line-through opacity-50" : ""}`}
+                    >
+                      {variant.optionValue ?? variant.sku}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ) : null}
+
+          <p className="text-sm text-slate-600">
+            {selected ? (
+              <>
+                SKU <span className="font-mono">{selected.sku}</span> ·{" "}
+                {selected.availableQty > 0 ? `${selected.availableQty} in stock` : "Out of stock"}
+              </>
+            ) : (
+              "Unavailable"
+            )}
+          </p>
 
           <div className="flex flex-wrap gap-4">
             <button
-              onClick={() => addToCart(product)}
-              className="rounded-full bg-slate-900 px-6 py-3 font-medium text-white"
+              onClick={() => selected && addToCart(selected)}
+              disabled={outOfStock}
+              className="rounded-full bg-slate-900 px-6 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
             >
-              Add to cart
+              {outOfStock ? "Sold out" : "Add to cart"}
             </button>
             <Link
               href="/cart"

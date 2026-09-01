@@ -2,25 +2,60 @@ export type EntityId = string;
 
 export type UserRole = "admin" | "inventory_manager" | "read_only" | "customer";
 
+export type ProductStatus = "draft" | "active" | "archived";
+
+export type ProductVariantView = {
+  id: string;
+  sku: string;
+  /** Null for the default variant of a single-variant product. */
+  optionValue: string | null;
+  priceCents: number;
+  isActive: boolean;
+  availableQty: number;
+};
+
 export type ProductView = {
   id: string;
   slug: string;
-  sku: string;
   name: string;
   description: string;
-  priceCents: number;
   tag: string;
   category: string;
   accent: string;
   features: string[];
+  status: ProductStatus;
+  /** Label for the variant axis, e.g. "Size". Null when there is one variant. */
+  optionName: string | null;
+  variants: ProductVariantView[];
 };
 
 export type ProductListResponse = {
   products: ProductView[];
 };
 
-export type OrderLineInput = {
+export type ProductVariantInput = {
+  id?: string;
+  sku: string;
+  optionValue?: string | null;
+  priceCents: number;
+  isActive?: boolean;
+};
+
+export type ProductUpsertRequest = {
   slug: string;
+  name: string;
+  description: string;
+  tag: string;
+  category: string;
+  accent: string;
+  features: string[];
+  status: ProductStatus;
+  optionName?: string | null;
+  variants: ProductVariantInput[];
+};
+
+export type OrderLineInput = {
+  sku: string;
   quantity: number;
 };
 
@@ -36,6 +71,7 @@ export type PlaceOrderRequest = {
 export type OrderItemView = {
   sku: string;
   name: string;
+  optionValue: string | null;
   unitPriceCents: number;
   quantity: number;
   lineTotalCents: number;

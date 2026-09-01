@@ -1,66 +1,26 @@
 import { Controller, Get, HttpException, HttpStatus, Param } from "@nestjs/common";
 import type { ProductListResponse, ProductView } from "@commerceops/types";
 import { prismaClient } from "../prisma/prisma.client";
-
-type ProductRecord = {
-  id: string;
-  slug: string;
-  sku: string;
-  name: string;
-  description: string;
-  priceCents: number;
-  tag: string;
-  category: string;
-  accent: string;
-  features: string[];
-};
-
-function toProductView(product: ProductRecord): ProductView {
-  return {
-    id: product.id,
-    slug: product.slug,
-    sku: product.sku,
-    name: product.name,
-    description: product.description,
-    priceCents: product.priceCents,
-    tag: product.tag,
-    category: product.category,
-    accent: product.accent,
-    features: product.features,
-  };
-}
-
-const PRODUCT_FIELDS = {
-  id: true,
-  slug: true,
-  sku: true,
-  name: true,
-  description: true,
-  priceCents: true,
-  tag: true,
-  category: true,
-  accent: true,
-  features: true,
-} as const;
+import { PRODUCT_INCLUDE, toProductViews } from "./product-view";
 
 @Controller("products")
 export class ProductsController {
   @Get()
   async listProducts(): Promise<ProductListResponse> {
     const products = await prismaClient.product.findMany({
-      where: { isActive: true },
+      where: { status: "active" },
       orderBy: { createdAt: "asc" },
-      select: PRODUCT_FIELDS,
+      include: PRODUCT_INCLUDE,
     });
 
-    return { products: products.map(toProductView) };
+    return { products: await toProductViews(products) };
   }
 
   @Get(":slug")
   async getProduct(@Param("slug") slug: string): Promise<ProductView> {
     const product = await prismaClient.product.findFirst({
-      where: { slug, isActive: true },
-      select: PRODUCT_FIELDS,
+      where: { slug, status: "active" },
+      include: PRODUCT_INCLUDE,
     });
 
     if (!product) {
@@ -70,6 +30,8 @@ export class ProductsController {
       );
     }
 
-    return toProductView(product);
+    const [view] = await toProductViews([product]);
+
+    return view;
   }
 }

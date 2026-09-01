@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "./storefront/cart-provider";
 import { useAuthUser } from "./providers/auth-provider";
-import { canAccessInventory, formatRole } from "../lib/roles";
+import { canAccessInventory, canManageProducts, formatRole } from "../lib/roles";
 
 export function NavHeader() {
   const router = useRouter();
@@ -35,6 +35,15 @@ export function NavHeader() {
               className="text-sm font-medium text-gray-700 hover:text-gray-900"
             >
               Inventory
+            </Link>
+          )}
+
+          {auth && canManageProducts(auth.role) && (
+            <Link
+              href="/admin/products"
+              className="text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
+              Products
             </Link>
           )}
 
