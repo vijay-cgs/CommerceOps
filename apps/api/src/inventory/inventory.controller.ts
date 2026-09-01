@@ -9,6 +9,7 @@ import type {
   UserRole,
 } from "@commerceops/types";
 import { prismaClient } from "../prisma/prisma.client";
+import { ensureInventoryLevelsForActiveVariants } from "./inventory-helper";
 
 function canAdjustInventory(role: UserRole): boolean {
   return role === "admin" || role === "inventory_manager";
@@ -74,6 +75,8 @@ export class InventoryController {
   @Get("context")
   async getInventoryContext(@Req() req: Request): Promise<InventoryContextResponse> {
     const auth = requireInventoryViewer(req);
+
+    await ensureInventoryLevelsForActiveVariants();
 
     const levels = await prismaClient.inventoryLevel.findMany({
       orderBy: [{ locationId: "asc" }, { sku: "asc" }],

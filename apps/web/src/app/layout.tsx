@@ -16,7 +16,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en">
-      <body>
+      <body suppressHydrationWarning>
         <QueryProvider>
           <AuthProvider user={user}>
             <CartProvider>

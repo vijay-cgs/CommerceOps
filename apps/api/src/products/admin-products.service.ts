@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { HttpException, HttpStatus } from "@nestjs/common";
 import type { ProductView } from "@commerceops/types";
 import { prismaClient } from "../prisma/prisma.client";
+import { ensureInventoryLevelsForSkus } from "../inventory/inventory-helper";
 import type { ProductUpsertDto, ProductVariantDto } from "./admin-products.dto";
 import { PRODUCT_INCLUDE, toProductViews } from "./product-view";
 
@@ -108,6 +109,8 @@ export async function createProduct(payload: ProductUpsertDto): Promise<ProductV
       },
     });
 
+    await ensureInventoryLevelsForSkus(payload.variants.map((v) => v.sku));
+
     return loadView(created.id);
   } catch (error) {
     throw translateWriteError(error);
@@ -191,6 +194,11 @@ export async function updateProduct(id: string, payload: ProductUpsertDto): Prom
           await tx.productVariant.create({ data: { ...data, productId: id } });
         }
       }
+
+      await ensureInventoryLevelsForSkus(
+        payload.variants.map((v) => v.sku),
+        tx,
+      );
     });
   } catch (error) {
     throw translateWriteError(error);
