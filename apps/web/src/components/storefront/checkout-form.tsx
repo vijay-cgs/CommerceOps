@@ -59,16 +59,31 @@ export function CheckoutForm({ defaultName }: { defaultName: string }) {
       return;
     }
 
+    const trimmedShippingName = shippingName.trim();
+    const trimmedShippingAddress = shippingAddress.trim();
+    const trimmedShippingCity = shippingCity.trim();
+    const trimmedShippingPostalCode = shippingPostalCode.trim();
+
+    if (
+      trimmedShippingName.length < 2 ||
+      trimmedShippingAddress.length < 4 ||
+      trimmedShippingCity.length < 2 ||
+      trimmedShippingPostalCode.length < 3
+    ) {
+      setError("Please provide valid shipping details.");
+      return;
+    }
+
     if (!idempotencyKeyRef.current) {
       idempotencyKeyRef.current = crypto.randomUUID();
     }
 
     orderMutation.mutate({
       items: items.map((item) => ({ sku: item.variant.sku, quantity: item.quantity })),
-      shippingName: shippingName.trim(),
-      shippingAddress: shippingAddress.trim(),
-      shippingCity: shippingCity.trim(),
-      shippingPostalCode: shippingPostalCode.trim(),
+      shippingName: trimmedShippingName,
+      shippingAddress: trimmedShippingAddress,
+      shippingCity: trimmedShippingCity,
+      shippingPostalCode: trimmedShippingPostalCode,
       idempotencyKey: idempotencyKeyRef.current,
     });
   }

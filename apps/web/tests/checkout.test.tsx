@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
@@ -40,6 +40,7 @@ vi.mock("next/navigation", () => ({
 
 import { CartProvider } from "../src/components/storefront/cart-provider";
 import { CheckoutForm } from "../src/components/storefront/checkout-form";
+import { submitOrder } from "../src/lib/catalog-api";
 
 function renderCheckout() {
   const queryClient = new QueryClient({
@@ -58,6 +59,7 @@ function renderCheckout() {
 describe("checkout form", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.mocked(submitOrder).mockReset();
   });
 
   it("prompts to keep shopping when the cart is empty", async () => {
@@ -110,5 +112,26 @@ describe("checkout form", () => {
       expect(screen.getByText("$141.00")).toBeInTheDocument();
     });
     expect(screen.queryByText(/discontinued/i)).not.toBeInTheDocument();
+  });
+
+  it("rejects whitespace-only shipping details without submitting", async () => {
+    window.localStorage.setItem(
+      "commerceops.cart.v3",
+      JSON.stringify([{ sku: "BACKPACK-001", quantity: 1 }]),
+    );
+
+    renderCheckout();
+
+    const form = (await screen.findByRole("button", { name: "Place order" })).closest("form");
+    expect(form).not.toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "  " } });
+    fireEvent.change(screen.getByLabelText(/address/i), { target: { value: "    " } });
+    fireEvent.change(screen.getByLabelText(/city/i), { target: { value: "  " } });
+    fireEvent.change(screen.getByLabelText(/zip/i), { target: { value: "   " } });
+    fireEvent.submit(form!);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("valid shipping details");
+    expect(submitOrder).not.toHaveBeenCalled();
   });
 });
