@@ -15,21 +15,21 @@ import {
 describe("mergeOrderLines", () => {
   it("collapses repeated SKUs into a single line", () => {
     const merged = mergeOrderLines([
-      { sku: "BACKPACK-001", quantity: 2 },
-      { sku: "BOTTLE-001", quantity: 1 },
-      { sku: "BACKPACK-001", quantity: 3 },
+      { productId: "product-1", sku: "BACKPACK-001", quantity: 2 },
+      { productId: "product-1", sku: "BOTTLE-001", quantity: 1 },
+      { productId: "product-1", sku: "BACKPACK-001", quantity: 3 },
     ]);
 
     expect(merged).toEqual([
-      { sku: "BACKPACK-001", quantity: 5 },
-      { sku: "BOTTLE-001", quantity: 1 },
+      { productId: "product-1", sku: "BACKPACK-001", quantity: 5 },
+      { productId: "product-1", sku: "BOTTLE-001", quantity: 1 },
     ]);
   });
 
   it("keeps sibling variants of one product separate", () => {
     const lines = [
-      { sku: "SHOES-001-9", quantity: 1 },
-      { sku: "SHOES-001-10", quantity: 2 },
+      { productId: "product-1", sku: "SHOES-001-9", quantity: 1 },
+      { productId: "product-1", sku: "SHOES-001-10", quantity: 2 },
     ];
 
     expect(mergeOrderLines(lines)).toEqual(lines);

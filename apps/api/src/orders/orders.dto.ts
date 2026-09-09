@@ -15,6 +15,10 @@ import {
 export class OrderLineDto {
   @IsString()
   @MaxLength(60)
+  productId!: string;
+
+  @IsString()
+  @MaxLength(60)
   sku!: string;
 
   @IsInt()

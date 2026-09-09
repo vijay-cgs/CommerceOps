@@ -58,10 +58,21 @@ model Product {
   @@index([status])
 }
 
+model Sku {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  variants ProductVariant[]
+}
+
 model ProductVariant {
   id          String   @id @default(cuid())
   productId   String
-  sku         String   @unique
+  skuId       String
+  sku         String
   // Null for the default variant of a single-variant product.
   optionValue String?
   // Money is stored in minor units to avoid floating point rounding.
@@ -72,9 +83,12 @@ model ProductVariant {
   updatedAt   DateTime @updatedAt
 
   product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  skuRecord  Sku         @relation(fields: [skuId], references: [id], onDelete: Restrict)
   orderItems OrderItem[]
 
+  @@unique([productId, skuId])
   @@index([productId])
+  @@index([skuId])
 }
 
 model Order {

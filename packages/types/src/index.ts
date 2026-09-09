@@ -6,6 +6,7 @@ export type ProductStatus = "draft" | "active" | "archived";
 
 export type ProductVariantView = {
   id: string;
+  productId: string;
   sku: string;
   /** Null for the default variant of a single-variant product. */
   optionValue: string | null;
@@ -33,6 +34,31 @@ export type ProductListResponse = {
   products: ProductView[];
 };
 
+export type AdminSkuView = {
+  id: string;
+  sku: string;
+  optionValue: string | null;
+  priceCents: number;
+  isActive: boolean;
+  isArchived: boolean;
+  productId: string;
+  productName: string;
+  productSlug: string;
+  availableQty: number;
+};
+
+export type SkuUpsertRequest = {
+  sku: string;
+  productId: string;
+  optionValue?: string | null;
+  priceCents: number;
+  isActive?: boolean;
+};
+
+export type AdminSkuListResponse = {
+  skus: AdminSkuView[];
+};
+
 export type ProductVariantInput = {
   id?: string;
   sku: string;
@@ -55,6 +81,7 @@ export type ProductUpsertRequest = {
 };
 
 export type OrderLineInput = {
+  productId: string;
   sku: string;
   quantity: number;
 };

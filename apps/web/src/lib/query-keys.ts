@@ -3,4 +3,5 @@ export const queryKeys = {
   inventoryHistory: ["inventory", "history"] as const,
   products: ["catalog", "products"] as const,
   adminProducts: ["admin", "products"] as const,
+  adminSkus: ["admin", "skus"] as const,
 };

@@ -5,6 +5,7 @@ import { prismaClient } from "../prisma/prisma.client";
 import { ensureInventoryLevelsForSkus } from "../inventory/inventory-helper";
 import type { ProductUpsertDto, ProductVariantDto } from "./admin-products.dto";
 import { PRODUCT_INCLUDE, toProductViews } from "./product-view";
+import { getOrCreateSku } from "./sku-helper";
 
 function conflict(message: string): HttpException {
   return new HttpException({ code: "conflict", message }, HttpStatus.CONFLICT);
@@ -98,13 +99,16 @@ export async function createProduct(payload: ProductUpsertDto): Promise<ProductV
         status: payload.status,
         optionName: payload.optionName?.trim() || null,
         variants: {
-          create: payload.variants.map((variant, index) => ({
-            sku: variant.sku,
-            optionValue: variant.optionValue?.trim() || null,
-            priceCents: variant.priceCents,
-            isActive: variant.isActive ?? true,
-            position: index,
-          })),
+          create: await Promise.all(
+            payload.variants.map(async (variant, index) => ({
+              sku: variant.sku,
+              skuId: (await getOrCreateSku(variant.sku)).id,
+              optionValue: variant.optionValue?.trim() || null,
+              priceCents: variant.priceCents,
+              isActive: variant.isActive ?? true,
+              position: index,
+            })),
+          ),
         },
       },
     });
@@ -180,8 +184,10 @@ export async function updateProduct(id: string, payload: ProductUpsertDto): Prom
       }
 
       for (const [index, variant] of payload.variants.entries()) {
+        const skuRecord = await getOrCreateSku(variant.sku, tx);
         const data = {
           sku: variant.sku,
+          skuId: skuRecord.id,
           optionValue: variant.optionValue?.trim() || null,
           priceCents: variant.priceCents,
           isActive: variant.isActive ?? true,

@@ -45,12 +45,20 @@ export function NavHeader() {
           )}
 
           {auth && canManageProducts(auth.role) && (
-            <Link
-              href="/admin/products"
-              className="text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              Products
-            </Link>
+            <>
+              <Link
+                href="/admin/products"
+                className="text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                Products
+              </Link>
+              <Link
+                href="/admin/skus"
+                className="text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                SKUs
+              </Link>
+            </>
           )}
 
           <div className="flex items-center gap-4">

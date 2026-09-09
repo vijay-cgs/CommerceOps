@@ -4,7 +4,9 @@ import { prismaClient } from "../prisma/prisma.client";
 
 type VariantRecord = {
   id: string;
+  productId: string;
   sku: string;
+  skuRecord: { isArchived: boolean };
   optionValue: string | null;
   priceCents: number;
   isActive: boolean;
@@ -26,7 +28,10 @@ type ProductRecord = {
 };
 
 export const PRODUCT_INCLUDE = {
-  variants: { orderBy: [{ position: "asc" }, { sku: "asc" }] },
+  variants: {
+    orderBy: [{ position: "asc" }, { sku: "asc" }],
+    include: { skuRecord: true },
+  },
 } satisfies Prisma.ProductInclude;
 
 /**
@@ -61,10 +66,11 @@ export function toProductView(product: ProductRecord, stock: Map<string, number>
     optionName: product.optionName,
     variants: product.variants.map((variant) => ({
       id: variant.id,
+      productId: variant.productId,
       sku: variant.sku,
       optionValue: variant.optionValue,
       priceCents: variant.priceCents,
-      isActive: variant.isActive,
+      isActive: variant.isActive && !variant.skuRecord.isArchived,
       availableQty: stock.get(variant.sku) ?? 0,
     })),
   };

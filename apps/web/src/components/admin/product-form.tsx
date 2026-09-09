@@ -36,7 +36,7 @@ function toDraft(product: ProductView | null): {
       features: "",
       status: "draft",
       optionName: "",
-      variants: [{ sku: "", optionValue: "", price: "", isActive: true }],
+      variants: [],
     };
   }
 
@@ -78,15 +78,6 @@ export function ProductForm({
 
   function set<K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
-  }
-
-  function setVariant(index: number, patch: Partial<VariantDraft>) {
-    setDraft((current) => ({
-      ...current,
-      variants: current.variants.map((variant, i) =>
-        i === index ? { ...variant, ...patch } : variant,
-      ),
-    }));
   }
 
   function handleSubmit(event: React.FormEvent) {
@@ -236,86 +227,10 @@ export function ProductForm({
         />
       </label>
 
-      <fieldset className="mt-6">
-        <legend className="text-sm font-semibold text-slate-800">Variants</legend>
-
-        <div className="mt-3 space-y-3">
-          {draft.variants.map((variant, index) => (
-            <div
-              key={variant.id ?? `new-${index}`}
-              className="grid items-end gap-3 rounded-xl border border-slate-200 p-3 md:grid-cols-[1.2fr_1fr_0.8fr_auto_auto]"
-            >
-              <label className="text-xs font-medium text-slate-600">
-                SKU
-                <input
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 font-mono text-sm uppercase"
-                  required
-                  value={variant.sku}
-                  onChange={(e) => setVariant(index, { sku: e.target.value })}
-                />
-              </label>
-              <label className="text-xs font-medium text-slate-600">
-                {draft.optionName || "Option"}
-                <input
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-                  value={variant.optionValue}
-                  onChange={(e) => setVariant(index, { optionValue: e.target.value })}
-                />
-              </label>
-              <label className="text-xs font-medium text-slate-600">
-                Price
-                <input
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-                  required
-                  inputMode="decimal"
-                  step="0.01"
-                  min="0"
-                  type="number"
-                  value={variant.price}
-                  onChange={(e) => setVariant(index, { price: e.target.value })}
-                />
-              </label>
-              <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={variant.isActive}
-                  onChange={(e) => setVariant(index, { isActive: e.target.checked })}
-                />
-                Active
-              </label>
-              <button
-                type="button"
-                className="text-sm font-medium text-red-600 disabled:opacity-40"
-                disabled={draft.variants.length === 1}
-                onClick={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    variants: current.variants.filter((_, i) => i !== index),
-                  }))
-                }
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          className="mt-3 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium"
-          onClick={() =>
-            setDraft((current) => ({
-              ...current,
-              variants: [
-                ...current.variants,
-                { sku: "", optionValue: "", price: "", isActive: true },
-              ],
-            }))
-          }
-        >
-          Add variant
-        </button>
-      </fieldset>
+      <p className="mt-6 rounded-xl border border-sky-100 bg-sky-50 p-4 text-sm text-sky-800">
+        SKUs are managed separately. Save this product, then use the SKUs screen to link one or more
+        SKU records to it.
+      </p>
 
       {message ? (
         <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">

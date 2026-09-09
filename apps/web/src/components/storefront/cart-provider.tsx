@@ -7,10 +7,11 @@ import { fetchProducts } from "../../lib/catalog-api";
 import { queryKeys } from "../../lib/query-keys";
 import { formatCents } from "../../lib/money";
 
-const STORAGE_KEY = "commerceops.cart.v3";
+const STORAGE_KEY = "commerceops.cart.v4";
 const MAX_QUANTITY = 99;
 
 type CartEntry = {
+  productId: string;
   sku: string;
   quantity: number;
 };
@@ -53,14 +54,20 @@ function readStoredCart(): CartEntry[] {
     }
 
     return parsed.flatMap((entry) => {
+      const productId = (entry as { productId?: unknown })?.productId;
       const sku = (entry as { sku?: unknown })?.sku;
       const quantity = Number((entry as { quantity?: unknown })?.quantity);
 
-      if (typeof sku !== "string" || !Number.isInteger(quantity) || quantity < 1) {
+      if (
+        typeof productId !== "string" ||
+        typeof sku !== "string" ||
+        !Number.isInteger(quantity) ||
+        quantity < 1
+      ) {
         return [];
       }
 
-      return [{ sku, quantity: Math.min(quantity, MAX_QUANTITY) }];
+      return [{ productId, sku, quantity: Math.min(quantity, MAX_QUANTITY) }];
     });
   } catch {
     return [];
@@ -96,16 +103,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [entries, hydrated]);
 
   const value = useMemo<CartContextValue>(() => {
-    const bySku = new Map<string, { product: ProductView; variant: ProductVariantView }>();
+    const byProductSku = new Map<string, { product: ProductView; variant: ProductVariantView }>();
 
     for (const product of productsQuery.data ?? []) {
       for (const variant of product.variants) {
-        bySku.set(variant.sku, { product, variant });
+        byProductSku.set(`${product.id}:${variant.sku}`, { product, variant });
       }
     }
 
     const items = entries.flatMap((entry) => {
-      const match = bySku.get(entry.sku);
+      const match = byProductSku.get(`${entry.productId}:${entry.sku}`);
       return match ? [{ ...match, quantity: entry.quantity }] : [];
     });
 
@@ -121,32 +128,43 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       isCatalogLoading: productsQuery.isLoading,
       addToCart: (variant, quantity = 1) => {
         setEntries((current) => {
-          const existing = current.find((entry) => entry.sku === variant.sku);
+          const existing = current.find(
+            (entry) => entry.productId === variant.productId && entry.sku === variant.sku,
+          );
 
           if (existing) {
             return current.map((entry) =>
-              entry.sku === variant.sku
+              entry.productId === variant.productId && entry.sku === variant.sku
                 ? { ...entry, quantity: Math.min(entry.quantity + quantity, MAX_QUANTITY) }
                 : entry,
             );
           }
 
-          return [...current, { sku: variant.sku, quantity: Math.min(quantity, MAX_QUANTITY) }];
+          return [
+            ...current,
+            {
+              productId: variant.productId,
+              sku: variant.sku,
+              quantity: Math.min(quantity, MAX_QUANTITY),
+            },
+          ];
         });
       },
-      updateQuantity: (sku, delta) => {
+      updateQuantity: (key, delta) => {
         setEntries((current) =>
           current
             .map((entry) =>
-              entry.sku === sku
+              `${entry.productId}:${entry.sku}` === key
                 ? { ...entry, quantity: Math.min(entry.quantity + delta, MAX_QUANTITY) }
                 : entry,
             )
             .filter((entry) => entry.quantity > 0),
         );
       },
-      removeFromCart: (sku) => {
-        setEntries((current) => current.filter((entry) => entry.sku !== sku));
+      removeFromCart: (key) => {
+        setEntries((current) =>
+          current.filter((entry) => `${entry.productId}:${entry.sku}` !== key),
+        );
       },
       clearCart: () => setEntries([]),
       formatMoney: formatCents,

@@ -60,8 +60,8 @@ export function ProductManager() {
     },
   });
 
-  const activateMutation = useMutation({
-    mutationFn: (product: ProductView) =>
+  const statusMutation = useMutation({
+    mutationFn: ({ product, status }: { product: ProductView; status: "active" | "draft" }) =>
       updateAdminProduct(product.id, {
         slug: product.slug,
         name: product.name,
@@ -70,7 +70,7 @@ export function ProductManager() {
         category: product.category,
         accent: product.accent,
         features: product.features,
-        status: "active",
+        status,
         optionName: product.optionName,
         variants: product.variants.map((v) => ({
           id: v.id,
@@ -82,7 +82,9 @@ export function ProductManager() {
       }),
     onSuccess: refresh,
     onError: (mutationError) => {
-      setError(mutationError instanceof Error ? mutationError.message : "Unable to activate");
+      setError(
+        mutationError instanceof Error ? mutationError.message : "Unable to update product status",
+      );
     },
   });
 
@@ -107,7 +109,9 @@ export function ProductManager() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight">Products</h1>
-          <p className="mt-1 text-sm text-slate-600">Manage catalog entries, variants and SKUs.</p>
+          <p className="mt-1 text-sm text-slate-600">
+            Manage catalog entries. SKUs are managed separately.
+          </p>
         </div>
         <button
           type="button"
@@ -168,29 +172,47 @@ export function ProductManager() {
                       setEditing(product);
                       setError(null);
                     }}
-                    className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium"
+                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                   >
                     Edit
                   </button>
+                  {product.status === "active" ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "This product will no longer be available in the storefront. Existing orders and linked SKUs will be preserved. Continue?",
+                          )
+                        ) {
+                          statusMutation.mutate({ product, status: "draft" });
+                        }
+                      }}
+                      disabled={statusMutation.isPending}
+                      className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                    >
+                      Disable
+                    </button>
+                  ) : product.status === "draft" ? (
+                    <button
+                      type="button"
+                      onClick={() => statusMutation.mutate({ product, status: "active" })}
+                      disabled={statusMutation.isPending}
+                      className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+                    >
+                      Enable
+                    </button>
+                  ) : null}
                   {product.status !== "archived" ? (
                     <button
                       type="button"
                       onClick={() => archiveMutation.mutate(product.id)}
                       disabled={archiveMutation.isPending}
-                      className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+                      className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 disabled:opacity-50"
                     >
                       Archive
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => activateMutation.mutate(product)}
-                      disabled={activateMutation.isPending}
-                      className="rounded-full border border-slate-300 bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                    >
-                      Activate
-                    </button>
-                  )}
+                  ) : null}
                 </div>
               </div>
 

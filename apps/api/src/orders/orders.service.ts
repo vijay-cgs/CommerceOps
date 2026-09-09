@@ -11,15 +11,19 @@ export function calculateShippingCents(subtotalCents: number): number {
 
 /** Collapses repeated SKUs so the same variant cannot bypass per-line limits. */
 export function mergeOrderLines(
-  items: { sku: string; quantity: number }[],
-): { sku: string; quantity: number }[] {
+  items: { productId: string; sku: string; quantity: number }[],
+): { productId: string; sku: string; quantity: number }[] {
   const merged = new Map<string, number>();
 
   for (const item of items) {
-    merged.set(item.sku, (merged.get(item.sku) ?? 0) + item.quantity);
+    const key = `${item.productId}:${item.sku}`;
+    merged.set(key, (merged.get(key) ?? 0) + item.quantity);
   }
 
-  return [...merged.entries()].map(([sku, quantity]) => ({ sku, quantity }));
+  return [...merged.entries()].map(([key, quantity]) => {
+    const [productId, sku] = key.split(":");
+    return { productId, sku, quantity };
+  });
 }
 
 function generateOrderNumber(): string {
@@ -44,14 +48,17 @@ export async function placeOrder(
       const variants = await tx.productVariant.findMany({
         where: {
           sku: { in: lines.map((line) => line.sku) },
+          productId: { in: lines.map((line) => line.productId) },
           isActive: true,
           product: { status: "active" },
         },
         include: { product: { select: { name: true } } },
       });
 
-      const variantBySku = new Map(variants.map((variant) => [variant.sku, variant]));
-      const missing = lines.filter((line) => !variantBySku.has(line.sku));
+      const variantByKey = new Map(
+        variants.map((variant) => [`${variant.productId}:${variant.sku}`, variant]),
+      );
+      const missing = lines.filter((line) => !variantByKey.has(`${line.productId}:${line.sku}`));
 
       if (missing.length > 0) {
         throw new HttpException(
@@ -68,7 +75,7 @@ export async function placeOrder(
       const itemRows: Prisma.OrderItemCreateManyOrderInput[] = [];
 
       for (const line of lines) {
-        const variant = variantBySku.get(line.sku)!;
+        const variant = variantByKey.get(`${line.productId}:${line.sku}`)!;
 
         // Price always comes from the catalog, never from the client payload.
         const lineTotalCents = variant.priceCents * line.quantity;

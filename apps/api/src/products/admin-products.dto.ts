@@ -94,7 +94,7 @@ export class ProductUpsertDto {
   optionName?: string | null;
 
   @IsArray()
-  @ArrayMinSize(1)
+  @ArrayMinSize(0)
   @ArrayMaxSize(50)
   @ValidateNested({ each: true })
   @Type(() => ProductVariantDto)

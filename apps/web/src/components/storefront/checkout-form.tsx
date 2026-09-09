@@ -79,7 +79,11 @@ export function CheckoutForm({ defaultName }: { defaultName: string }) {
     }
 
     orderMutation.mutate({
-      items: items.map((item) => ({ sku: item.variant.sku, quantity: item.quantity })),
+      items: items.map((item) => ({
+        productId: item.product.id,
+        sku: item.variant.sku,
+        quantity: item.quantity,
+      })),
       shippingName: trimmedShippingName,
       shippingAddress: trimmedShippingAddress,
       shippingCity: trimmedShippingCity,

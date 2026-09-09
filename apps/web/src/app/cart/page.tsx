@@ -51,7 +51,7 @@ export default function CartPage() {
             <div className="space-y-4">
               {items.map(({ product, variant, quantity }) => (
                 <div
-                  key={variant.sku}
+                  key={`${product.id}:${variant.sku}`}
                   className="flex items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5"
                 >
                   <div className="flex items-center gap-4">
@@ -70,7 +70,7 @@ export default function CartPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={() => updateQuantity(variant.sku, -1)}
+                      onClick={() => updateQuantity(`${product.id}:${variant.sku}`, -1)}
                       className="h-8 w-8 rounded-full border border-slate-300"
                       type="button"
                     >
@@ -78,14 +78,14 @@ export default function CartPage() {
                     </button>
                     <span className="min-w-6 text-center font-medium">{quantity}</span>
                     <button
-                      onClick={() => updateQuantity(variant.sku, 1)}
+                      onClick={() => updateQuantity(`${product.id}:${variant.sku}`, 1)}
                       className="h-8 w-8 rounded-full border border-slate-300"
                       type="button"
                     >
                       +
                     </button>
                     <button
-                      onClick={() => removeFromCart(variant.sku)}
+                      onClick={() => removeFromCart(`${product.id}:${variant.sku}`)}
                       className="ml-2 text-sm font-medium text-red-600"
                       type="button"
                     >

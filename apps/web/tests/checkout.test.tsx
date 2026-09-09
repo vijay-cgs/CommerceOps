@@ -19,6 +19,7 @@ const backpack: ProductView = {
   variants: [
     {
       id: "v1",
+      productId: "p1",
       sku: "BACKPACK-001",
       optionValue: null,
       priceCents: 12900,
@@ -70,8 +71,8 @@ describe("checkout form", () => {
 
   it("prices the order from the catalog and adds shipping", async () => {
     window.localStorage.setItem(
-      "commerceops.cart.v3",
-      JSON.stringify([{ sku: "BACKPACK-001", quantity: 2 }]),
+      "commerceops.cart.v4",
+      JSON.stringify([{ productId: "p1", sku: "BACKPACK-001", quantity: 2 }]),
     );
 
     renderCheckout();
@@ -86,8 +87,8 @@ describe("checkout form", () => {
 
   it("prefills the shipping name from the signed-in user", async () => {
     window.localStorage.setItem(
-      "commerceops.cart.v3",
-      JSON.stringify([{ sku: "BACKPACK-001", quantity: 1 }]),
+      "commerceops.cart.v4",
+      JSON.stringify([{ productId: "p1", sku: "BACKPACK-001", quantity: 1 }]),
     );
 
     renderCheckout();
@@ -99,10 +100,10 @@ describe("checkout form", () => {
 
   it("ignores cart entries that are no longer in the catalog", async () => {
     window.localStorage.setItem(
-      "commerceops.cart.v3",
+      "commerceops.cart.v4",
       JSON.stringify([
-        { sku: "BACKPACK-001", quantity: 1 },
-        { sku: "DISCONTINUED-001", quantity: 5 },
+        { productId: "p1", sku: "BACKPACK-001", quantity: 1 },
+        { productId: "p1", sku: "DISCONTINUED-001", quantity: 5 },
       ]),
     );
 
@@ -116,8 +117,8 @@ describe("checkout form", () => {
 
   it("rejects whitespace-only shipping details without submitting", async () => {
     window.localStorage.setItem(
-      "commerceops.cart.v3",
-      JSON.stringify([{ sku: "BACKPACK-001", quantity: 1 }]),
+      "commerceops.cart.v4",
+      JSON.stringify([{ productId: "p1", sku: "BACKPACK-001", quantity: 1 }]),
     );
 
     renderCheckout();
