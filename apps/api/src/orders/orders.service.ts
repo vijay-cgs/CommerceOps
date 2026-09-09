@@ -230,3 +230,15 @@ export async function listOrdersForUser(userId: string) {
 
   return orders.map(toOrderView);
 }
+
+export async function getOrderForUser(
+  userId: string,
+  orderNumber: string,
+): Promise<OrderView | null> {
+  const order = await prismaClient.order.findFirst({
+    where: { userId, orderNumber },
+    include: { items: true },
+  });
+
+  return order ? toOrderView(order) : null;
+}

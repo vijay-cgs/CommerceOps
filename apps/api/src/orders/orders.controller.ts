@@ -5,13 +5,14 @@ import {
   HttpCode,
   HttpException,
   HttpStatus,
+  Param,
   Post,
   Req,
 } from "@nestjs/common";
 import type { Request } from "express";
 import type { OrderListResponse, OrderView } from "@commerceops/types";
 import { PlaceOrderDto } from "./orders.dto";
-import { listOrdersForUser, placeOrder } from "./orders.service";
+import { getOrderForUser, listOrdersForUser, placeOrder } from "./orders.service";
 
 function requireActor(req: Request): Express.AuthContext {
   if (!req.authContext) {
@@ -39,5 +40,20 @@ export class OrdersController {
     const actor = requireActor(req);
 
     return { orders: await listOrdersForUser(actor.userId) };
+  }
+
+  @Get(":orderNumber")
+  async get(@Req() req: Request, @Param("orderNumber") orderNumber: string): Promise<OrderView> {
+    const actor = requireActor(req);
+    const order = await getOrderForUser(actor.userId, orderNumber);
+
+    if (!order) {
+      throw new HttpException(
+        { code: "order_not_found", message: "Order not found" },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    return order;
   }
 }

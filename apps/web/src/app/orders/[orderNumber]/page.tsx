@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import type { OrderListResponse } from "@commerceops/types";
+import type { OrderView } from "@commerceops/types";
 import { getAuthContext } from "../../../lib/auth";
 import { API_BASE_URL } from "../../../lib/session";
 import { formatCents } from "../../../lib/money";
@@ -17,7 +17,7 @@ export default async function OrderConfirmationPage({
     redirect("/login");
   }
 
-  const upstream = await fetch(`${API_BASE_URL}/api/v1/orders`, {
+  const upstream = await fetch(`${API_BASE_URL}/api/v1/orders/${encodeURIComponent(orderNumber)}`, {
     headers: { authorization: `Bearer ${auth.token}` },
     cache: "no-store",
   });
@@ -26,8 +26,8 @@ export default async function OrderConfirmationPage({
     notFound();
   }
 
-  const payload = (await upstream.json()) as { data?: OrderListResponse };
-  const order = payload.data?.orders.find((candidate) => candidate.orderNumber === orderNumber);
+  const payload = (await upstream.json()) as { data?: OrderView };
+  const order = payload.data;
 
   if (!order) {
     notFound();

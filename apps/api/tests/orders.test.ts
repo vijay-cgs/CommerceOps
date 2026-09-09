@@ -1,5 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { calculateShippingCents, mergeOrderLines } from "../src/orders/orders.service";
+import { describe, expect, it, vi } from "vitest";
+
+const { findFirst } = vi.hoisted(() => ({ findFirst: vi.fn() }));
+
+vi.mock("../src/prisma/prisma.client", () => ({
+  prismaClient: { order: { findFirst } },
+}));
+
+import {
+  calculateShippingCents,
+  getOrderForUser,
+  mergeOrderLines,
+} from "../src/orders/orders.service";
 
 describe("mergeOrderLines", () => {
   it("collapses repeated SKUs into a single line", () => {
@@ -32,5 +43,35 @@ describe("calculateShippingCents", () => {
 
   it("charges nothing when the subtotal is zero", () => {
     expect(calculateShippingCents(0)).toBe(0);
+  });
+});
+
+describe("getOrderForUser", () => {
+  it("looks up an order by owner and order number", async () => {
+    findFirst.mockResolvedValueOnce({
+      id: "order-1",
+      orderNumber: "CO-ABC-1234",
+      status: "CONFIRMED",
+      subtotalCents: 12900,
+      shippingCents: 1200,
+      totalCents: 14100,
+      createdAt: new Date("2026-09-01T12:00:00.000Z"),
+      items: [],
+    });
+
+    await expect(getOrderForUser("user-1", "CO-ABC-1234")).resolves.toMatchObject({
+      orderNumber: "CO-ABC-1234",
+      totalCents: 14100,
+    });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { userId: "user-1", orderNumber: "CO-ABC-1234" },
+      include: { items: true },
+    });
+  });
+
+  it("returns null when the order does not belong to the user", async () => {
+    findFirst.mockResolvedValueOnce(null);
+
+    await expect(getOrderForUser("user-1", "CO-OTHER-1234")).resolves.toBeNull();
   });
 });
