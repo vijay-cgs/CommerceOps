@@ -110,6 +110,7 @@ export type InventoryContextResponse = {
     canAdjust: boolean;
   };
   levels: InventoryLevelView[];
+  hasMore: boolean;
 };
 
 export type InventoryAdjustRequest = {

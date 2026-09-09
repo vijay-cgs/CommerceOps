@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InventoryAdjustRequest, InventoryContextResponse } from "@commerceops/types";
 import {
@@ -85,9 +85,16 @@ export function validateDraft(
 
 export function InventoryContextPanel() {
   const queryClient = useQueryClient();
+  const [levelSearchInput, setLevelSearchInput] = useState("");
+  const [levelSearch, setLevelSearch] = useState("");
+  const [isLevelSuggestionsOpen, setIsLevelSuggestionsOpen] = useState(false);
+  const [selectedLevel, setSelectedLevel] = useState<
+    InventoryContextResponse["levels"][number] | null
+  >(null);
   const contextQuery = useQuery({
-    queryKey: queryKeys.inventoryContext,
-    queryFn: fetchInventoryContext,
+    queryKey: queryKeys.inventoryContext(levelSearch),
+    queryFn: () => fetchInventoryContext(levelSearch),
+    placeholderData: (previousData) => previousData,
   });
   const historyQuery = useQuery({
     queryKey: queryKeys.inventoryHistory,
@@ -108,6 +115,15 @@ export function InventoryContextPanel() {
   // Held stable so retrying the same draft reuses the key and the server can
   // dedupe it. Cleared when the draft changes or an adjustment is recorded.
   const idempotencyKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setLevelSearch(levelSearchInput.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [levelSearchInput]);
+
   const preview = useMemo(() => {
     if (!contextQuery.data) {
       return {
@@ -117,10 +133,15 @@ export function InventoryContextPanel() {
       };
     }
 
-    return validateDraft(contextQuery.data, draft);
-  }, [contextQuery.data, draft]);
+    const levels =
+      selectedLevel && !contextQuery.data.levels.some((level) => level.id === selectedLevel.id)
+        ? [selectedLevel, ...contextQuery.data.levels]
+        : contextQuery.data.levels;
 
-  if (contextQuery.isLoading) {
+    return validateDraft({ ...contextQuery.data, levels }, draft);
+  }, [contextQuery.data, draft, selectedLevel]);
+
+  if (contextQuery.isLoading && !contextQuery.data) {
     return <p className="mt-3 text-gray-600">Loading inventory context...</p>;
   }
 
@@ -134,7 +155,18 @@ export function InventoryContextPanel() {
     return <p className="mt-3 text-gray-600">Inventory context is not available yet.</p>;
   }
 
-  const selectedLevel = context.levels.find((level) => level.id === draft.inventoryLevelId);
+  const visibleLevels =
+    selectedLevel && !context.levels.some((level) => level.id === selectedLevel.id)
+      ? [selectedLevel, ...context.levels]
+      : context.levels;
+
+  function getSelectedLevel() {
+    if (selectedLevel?.id === draft.inventoryLevelId) {
+      return selectedLevel;
+    }
+
+    return contextQuery.data?.levels.find((level) => level.id === draft.inventoryLevelId);
+  }
 
   function updateDraft<K extends keyof AdjustmentDraft>(key: K, value: AdjustmentDraft[K]) {
     // A changed draft is a different logical operation, so it needs its own key.
@@ -143,11 +175,41 @@ export function InventoryContextPanel() {
       ...current,
       [key]: value,
     }));
+
+    if (key === "inventoryLevelId") {
+      setSelectedLevel(visibleLevels.find((level) => level.id === value) ?? null);
+    }
+  }
+
+  function getLevelLabel(level: InventoryContextResponse["levels"][number]): string {
+    return `${level.sku} @ ${level.locationId} (available: ${level.availableQty})`;
+  }
+
+  function handleLevelInputChange(value: string) {
+    setLevelSearchInput(value);
+    setIsLevelSuggestionsOpen(true);
+    const selected = visibleLevels.find((level) => getLevelLabel(level) === value);
+
+    if (selected) {
+      updateDraft("inventoryLevelId", selected.id);
+      return;
+    }
+
+    idempotencyKeyRef.current = null;
+    setSelectedLevel(null);
+    setDraft((current) => ({ ...current, inventoryLevelId: "" }));
+  }
+
+  function selectInventoryLevel(level: InventoryContextResponse["levels"][number]) {
+    const label = getLevelLabel(level);
+    setLevelSearchInput(label);
+    updateDraft("inventoryLevelId", level.id);
+    setIsLevelSuggestionsOpen(false);
   }
 
   async function refreshInventoryData() {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.inventoryContext }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventoryContext() }),
       queryClient.invalidateQueries({ queryKey: queryKeys.inventoryHistory }),
     ]);
   }
@@ -169,7 +231,12 @@ export function InventoryContextPanel() {
       return;
     }
 
-    const result = validateDraft(activeContext, draft);
+    const result = validateDraft(
+      selectedLevel && !activeContext.levels.some((level) => level.id === selectedLevel.id)
+        ? { ...activeContext, levels: [selectedLevel, ...activeContext.levels] }
+        : activeContext,
+      draft,
+    );
     setValidationErrors(result.errors);
 
     if (result.errors.length > 0) {
@@ -177,7 +244,8 @@ export function InventoryContextPanel() {
       return;
     }
 
-    if (!selectedLevel) {
+    const activeSelectedLevel = getSelectedLevel();
+    if (!activeSelectedLevel) {
       setFeedback({
         tone: "error",
         message: "Select a valid inventory level before submitting.",
@@ -193,7 +261,7 @@ export function InventoryContextPanel() {
       inventoryLevelId: draft.inventoryLevelId,
       reasonCode: draft.reasonCode,
       deltaQty: result.parsedDelta as number,
-      expectedVersion: selectedLevel.expectedVersion,
+      expectedVersion: activeSelectedLevel.expectedVersion,
       idempotencyKey: idempotencyKeyRef.current,
       note: draft.note.trim().length > 0 ? draft.note.trim() : undefined,
     };
@@ -282,19 +350,47 @@ export function InventoryContextPanel() {
             >
               Inventory level
             </label>
-            <select
-              className="w-full rounded border border-gray-300 px-3 py-2"
-              id="inventory-level"
-              onChange={(event) => updateDraft("inventoryLevelId", event.target.value)}
-              value={draft.inventoryLevelId}
-            >
-              <option value="">Select a level</option>
-              {context.levels.map((level) => (
-                <option key={level.id} value={level.id}>
-                  {level.sku} @ {level.locationId} (available: {level.availableQty})
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                aria-label="Inventory level"
+                aria-autocomplete="list"
+                aria-controls="inventory-level-options"
+                aria-expanded={isLevelSuggestionsOpen}
+                className="w-full rounded border border-gray-300 px-3 py-2"
+                id="inventory-level"
+                onBlur={() => window.setTimeout(() => setIsLevelSuggestionsOpen(false), 100)}
+                onChange={(event) => handleLevelInputChange(event.target.value)}
+                onFocus={() => setIsLevelSuggestionsOpen(true)}
+                placeholder="Search by SKU or location"
+                type="text"
+                value={levelSearchInput}
+              />
+              {isLevelSuggestionsOpen && visibleLevels.length > 0 ? (
+                <div
+                  className="absolute left-0 right-0 top-full z-20 mt-1 max-h-60 overflow-y-auto rounded border border-gray-300 bg-white shadow-lg"
+                  id="inventory-level-options"
+                  role="listbox"
+                >
+                  {visibleLevels.map((level) => (
+                    <button
+                      className="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm text-gray-800 last:border-0 hover:bg-slate-50"
+                      key={level.id}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectInventoryLevel(level)}
+                      role="option"
+                      type="button"
+                    >
+                      {getLevelLabel(level)}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            {context.hasMore ? (
+              <p className="mt-1 text-xs text-gray-500">
+                Showing the first 50 matches. Refine your search to find more.
+              </p>
+            ) : null}
           </div>
 
           <div>

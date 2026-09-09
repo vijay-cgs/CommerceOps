@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Post, Req } from "@nestjs/common";
+import { Body, Controller, Get, HttpException, HttpStatus, Post, Query, Req } from "@nestjs/common";
 import type { Request } from "express";
 import { Prisma } from "@prisma/client";
 import type {
@@ -73,15 +73,32 @@ function validateAdjustmentPayload(payload: Partial<InventoryAdjustRequest>): st
 @Controller("inventory")
 export class InventoryController {
   @Get("context")
-  async getInventoryContext(@Req() req: Request): Promise<InventoryContextResponse> {
+  async getInventoryContext(
+    @Req() req: Request,
+    @Query("search") search = "",
+    @Query("cursor") cursor = "",
+  ): Promise<InventoryContextResponse> {
     const auth = requireInventoryViewer(req);
 
     await ensureInventoryLevelsForActiveVariants();
 
+    const normalizedSearch = search.trim();
+    const pageSize = 50;
     const levels = await prismaClient.inventoryLevel.findMany({
+      where: normalizedSearch
+        ? {
+            OR: [
+              { sku: { contains: normalizedSearch, mode: "insensitive" } },
+              { locationId: { contains: normalizedSearch, mode: "insensitive" } },
+            ],
+          }
+        : undefined,
       orderBy: [{ locationId: "asc" }, { sku: "asc" }],
-      take: 100,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      take: pageSize + 1,
     });
+    const hasMore = levels.length > pageSize;
+    const page = hasMore ? levels.slice(0, pageSize) : levels;
 
     return {
       viewer: {
@@ -89,7 +106,7 @@ export class InventoryController {
         role: auth.role,
         canAdjust: canAdjustInventory(auth.role),
       },
-      levels: levels.map((level) => ({
+      levels: page.map((level) => ({
         id: level.id,
         sku: level.sku,
         locationId: level.locationId,
@@ -99,6 +116,7 @@ export class InventoryController {
         expectedVersion: level.expectedVersion,
         updatedAt: level.updatedAt.toISOString(),
       })),
+      hasMore,
     };
   }
 

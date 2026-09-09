@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthContext } from "../../../../lib/auth";
 import { API_BASE_URL } from "../../../../lib/session";
 
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await getAuthContext();
 
   if (!auth) {
@@ -19,13 +19,16 @@ export async function GET() {
     );
   }
 
-  const upstream = await fetch(`${API_BASE_URL}/api/v1/inventory/context`, {
-    method: "GET",
-    headers: {
-      authorization: `Bearer ${auth.token}`,
+  const upstream = await fetch(
+    `${API_BASE_URL}/api/v1/inventory/context${new URL(request.url).search}`,
+    {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${auth.token}`,
+      },
+      cache: "no-store",
     },
-    cache: "no-store",
-  });
+  );
 
   const body = await upstream.text();
 

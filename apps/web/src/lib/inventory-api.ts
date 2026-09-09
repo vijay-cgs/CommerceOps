@@ -31,8 +31,15 @@ export class InventoryApiError extends Error {
   }
 }
 
-export async function fetchInventoryContext(): Promise<InventoryContextResponse> {
-  const response = await fetch("/api/inventory/context", {
+export async function fetchInventoryContext(
+  search = "",
+  cursor = "",
+): Promise<InventoryContextResponse> {
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+  if (cursor) params.set("cursor", cursor);
+  const query = params.toString();
+  const response = await fetch(`/api/inventory/context${query ? `?${query}` : ""}`, {
     method: "GET",
     cache: "no-store",
   });
