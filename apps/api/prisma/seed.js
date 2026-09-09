@@ -4,6 +4,7 @@ const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
+const BULK_PRODUCT_COUNT = 1000;
 
 const STAFF_ACCOUNTS = [
   { email: "admin@commerceops.local", name: "Store Admin", role: "admin" },
@@ -99,10 +100,16 @@ async function seedCatalog() {
     });
 
     for (const [index, variant] of variants.entries()) {
+      const skuRecord = await prisma.sku.upsert({
+        where: { code: variant.sku },
+        update: { isArchived: false },
+        create: { code: variant.sku },
+      });
+
       await prisma.productVariant.upsert({
-        where: { sku: variant.sku },
-        update: { ...variant, position: index, productId: saved.id, isActive: true },
-        create: { ...variant, position: index, productId: saved.id },
+        where: { productId_skuId: { productId: saved.id, skuId: skuRecord.id } },
+        update: { ...variant, skuId: skuRecord.id, position: index, isActive: true },
+        create: { ...variant, skuId: skuRecord.id, position: index, productId: saved.id },
       });
     }
   }
@@ -111,70 +118,164 @@ async function seedCatalog() {
   console.log(`\u2713 Seeded ${CATALOG.length} products with ${variantCount} variants`);
 }
 
+function makeBulkProduct(index) {
+  const number = String(index).padStart(4, "0");
+
+  return {
+    slug: `bulk-product-${number}`,
+    name: `Commerce Essentials ${number}`,
+    tag: index % 3 === 0 ? "New arrival" : index % 3 === 1 ? "Best seller" : "Daily essential",
+    category: ["Workspace", "Lifestyle", "Travel", "Fitness"][index % 4],
+    description: `A reliable CommerceOps catalog item created for bulk inventory testing (${number}).`,
+    accent: [
+      "from-sky-500 to-cyan-500",
+      "from-emerald-500 to-teal-500",
+      "from-amber-500 to-orange-500",
+      "from-violet-500 to-fuchsia-500",
+    ][index % 4],
+    features: ["Durable construction", "Everyday utility", "Quality tested"],
+    status: "active",
+    optionName: null,
+    sku: `BULK-SKU-${number}`,
+    priceCents: 1500 + (index % 80) * 125,
+  };
+}
+
+async function seedBulkCatalog() {
+  for (let index = 1; index <= BULK_PRODUCT_COUNT; index += 1) {
+    const item = makeBulkProduct(index);
+    const saved = await prisma.product.upsert({
+      where: { slug: item.slug },
+      update: {
+        name: item.name,
+        tag: item.tag,
+        category: item.category,
+        description: item.description,
+        accent: item.accent,
+        features: item.features,
+        status: item.status,
+        optionName: item.optionName,
+      },
+      create: {
+        slug: item.slug,
+        name: item.name,
+        tag: item.tag,
+        category: item.category,
+        description: item.description,
+        accent: item.accent,
+        features: item.features,
+        status: item.status,
+        optionName: item.optionName,
+      },
+    });
+    const skuRecord = await prisma.sku.upsert({
+      where: { code: item.sku },
+      update: { isArchived: false },
+      create: { code: item.sku },
+    });
+
+    await prisma.productVariant.upsert({
+      where: { productId_skuId: { productId: saved.id, skuId: skuRecord.id } },
+      update: {
+        sku: item.sku,
+        priceCents: item.priceCents,
+        optionValue: null,
+        position: 0,
+        isActive: true,
+      },
+      create: {
+        productId: saved.id,
+        skuId: skuRecord.id,
+        sku: item.sku,
+        priceCents: item.priceCents,
+        optionValue: null,
+        position: 0,
+        isActive: true,
+      },
+    });
+  }
+
+  console.log(`\u2713 Seeded ${BULK_PRODUCT_COUNT} bulk products with ${BULK_PRODUCT_COUNT} SKUs`);
+}
+
 async function seed() {
   try {
     await seedStaffAccounts();
     await seedCatalog();
+    await seedBulkCatalog();
 
     // Clear existing data
     await prisma.inventoryAdjustment.deleteMany({});
     await prisma.inventoryLevel.deleteMany({});
 
-    // Create sample inventory levels
+    // Create inventory for every SKU, with richer quantities for the demo catalog.
+    const demoInventory = [
+      {
+        sku: "BACKPACK-001",
+        locationId: "warehouse-main",
+        availableQty: 45,
+        reservedQty: 5,
+        incomingQty: 10,
+        expectedVersion: 1,
+      },
+      {
+        sku: "LAMP-001",
+        locationId: "warehouse-main",
+        availableQty: 28,
+        reservedQty: 2,
+        incomingQty: 15,
+        expectedVersion: 1,
+      },
+      {
+        sku: "BOTTLE-001",
+        locationId: "warehouse-main",
+        availableQty: 120,
+        reservedQty: 20,
+        incomingQty: 50,
+        expectedVersion: 1,
+      },
+      {
+        sku: "SHOES-001",
+        locationId: "warehouse-main",
+        availableQty: 38,
+        reservedQty: 8,
+        incomingQty: 25,
+        expectedVersion: 1,
+      },
+      {
+        sku: "SHOES-001-9",
+        locationId: "warehouse-main",
+        availableQty: 22,
+        reservedQty: 3,
+        incomingQty: 10,
+        expectedVersion: 1,
+      },
+      {
+        sku: "SHOES-001-10",
+        locationId: "warehouse-main",
+        availableQty: 7,
+        reservedQty: 0,
+        incomingQty: 12,
+        expectedVersion: 1,
+      },
+    ];
+    const inventoryBySku = new Map(demoInventory.map((level) => [level.sku, level]));
+    const allVariants = await prisma.productVariant.findMany({ select: { sku: true } });
     const levels = await prisma.inventoryLevel.createMany({
-      data: [
-        {
-          sku: "BACKPACK-001",
-          locationId: "warehouse-main",
-          availableQty: 45,
-          reservedQty: 5,
-          incomingQty: 10,
-          expectedVersion: 1,
-        },
-        {
-          sku: "LAMP-001",
-          locationId: "warehouse-main",
-          availableQty: 28,
-          reservedQty: 2,
-          incomingQty: 15,
-          expectedVersion: 1,
-        },
-        {
-          sku: "BOTTLE-001",
-          locationId: "warehouse-main",
-          availableQty: 120,
-          reservedQty: 20,
-          incomingQty: 50,
-          expectedVersion: 1,
-        },
-        {
-          sku: "SHOES-001",
-          locationId: "warehouse-main",
-          availableQty: 38,
-          reservedQty: 8,
-          incomingQty: 25,
-          expectedVersion: 1,
-        },
-        {
-          sku: "SHOES-001-9",
-          locationId: "warehouse-main",
-          availableQty: 22,
-          reservedQty: 3,
-          incomingQty: 10,
-          expectedVersion: 1,
-        },
-        {
-          sku: "SHOES-001-10",
-          locationId: "warehouse-main",
-          availableQty: 7,
-          reservedQty: 0,
-          incomingQty: 12,
-          expectedVersion: 1,
-        },
-      ],
+      data: allVariants.map(
+        ({ sku }) =>
+          inventoryBySku.get(sku) ?? {
+            sku,
+            locationId: "warehouse-main",
+            availableQty: 25,
+            reservedQty: 0,
+            incomingQty: 20,
+            expectedVersion: 1,
+          },
+      ),
     });
 
-    console.log(`✓ Seeded ${levels.count} inventory levels`);
+    console.log(`\u2713 Seeded ${levels.count} inventory levels`);
 
     // Fetch the created levels to get their IDs
     const createdLevels = await prisma.inventoryLevel.findMany();
