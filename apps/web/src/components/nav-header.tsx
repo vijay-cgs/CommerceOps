@@ -28,6 +28,12 @@ export function NavHeader() {
             Shop
           </Link>
 
+          {auth && (
+            <Link href="/orders" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+              Orders
+            </Link>
+          )}
+
           {/* Show inventory link only when user has appropriate role */}
           {auth && canAccessInventory(auth.role) && (
             <Link
