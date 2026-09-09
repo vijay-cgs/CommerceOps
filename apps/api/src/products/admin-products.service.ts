@@ -95,6 +95,7 @@ export async function createProduct(payload: ProductUpsertDto): Promise<ProductV
         tag: payload.tag?.trim() || "New",
         category: payload.category.trim(),
         accent: payload.accent?.trim() || "from-sky-500 to-cyan-500",
+        imageUrl: payload.imageUrl?.trim() || null,
         features: payload.features,
         status: payload.status,
         optionName: payload.optionName?.trim() || null,
@@ -113,6 +114,17 @@ export async function createProduct(payload: ProductUpsertDto): Promise<ProductV
       },
     });
 
+    if (payload.images?.length) {
+      await prismaClient.productImage.createMany({
+        data: payload.images.map((image, position) => ({
+          productId: created.id,
+          url: image.url.trim(),
+          altText: image.altText?.trim() || null,
+          position: image.position ?? position,
+          isPrimary: image.isPrimary ?? position === 0,
+        })),
+      });
+    }
     await ensureInventoryLevelsForSkus(payload.variants.map((v) => v.sku));
 
     return loadView(created.id);
@@ -166,11 +178,25 @@ export async function updateProduct(id: string, payload: ProductUpsertDto): Prom
           tag: payload.tag?.trim() || "New",
           category: payload.category.trim(),
           accent: payload.accent?.trim() || "from-sky-500 to-cyan-500",
+          imageUrl: payload.imageUrl?.trim() || null,
           features: payload.features,
           status: payload.status,
           optionName: payload.optionName?.trim() || null,
         },
       });
+
+      if (payload.images) {
+        await tx.productImage.deleteMany({ where: { productId: id } });
+        await tx.productImage.createMany({
+          data: payload.images.map((image, position) => ({
+            productId: id,
+            url: image.url.trim(),
+            altText: image.altText?.trim() || null,
+            position: image.position ?? position,
+            isPrimary: image.isPrimary ?? position === 0,
+          })),
+        });
+      }
 
       for (const variant of removed) {
         if (orderedVariantIds.has(variant.id)) {

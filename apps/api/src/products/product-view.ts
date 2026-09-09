@@ -1,12 +1,12 @@
 import { Prisma } from "@prisma/client";
-import type { ProductStatus, ProductView } from "@commerceops/types";
+import type { ImageView, ProductStatus, ProductView } from "@commerceops/types";
 import { prismaClient } from "../prisma/prisma.client";
 
 type VariantRecord = {
   id: string;
   productId: string;
   sku: string;
-  skuRecord: { isArchived: boolean };
+  skuRecord: { isArchived: boolean; imageUrl: string | null; images: ImageView[] };
   optionValue: string | null;
   priceCents: number;
   isActive: boolean;
@@ -21,6 +21,8 @@ type ProductRecord = {
   tag: string;
   category: string;
   accent: string;
+  imageUrl: string | null;
+  images: ImageView[];
   features: string[];
   status: string;
   optionName: string | null;
@@ -30,8 +32,11 @@ type ProductRecord = {
 export const PRODUCT_INCLUDE = {
   variants: {
     orderBy: [{ position: "asc" }, { sku: "asc" }],
-    include: { skuRecord: true },
+    include: {
+      skuRecord: { include: { images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] } } },
+    },
   },
+  images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] },
 } satisfies Prisma.ProductInclude;
 
 /**
@@ -61,6 +66,8 @@ export function toProductView(product: ProductRecord, stock: Map<string, number>
     tag: product.tag,
     category: product.category,
     accent: product.accent,
+    imageUrl: product.imageUrl,
+    images: product.images,
     features: product.features,
     status: product.status as ProductStatus,
     optionName: product.optionName,
@@ -68,6 +75,8 @@ export function toProductView(product: ProductRecord, stock: Map<string, number>
       id: variant.id,
       productId: variant.productId,
       sku: variant.sku,
+      imageUrl: variant.skuRecord.imageUrl,
+      images: variant.skuRecord.images,
       optionValue: variant.optionValue,
       priceCents: variant.priceCents,
       isActive: variant.isActive && !variant.skuRecord.isArchived,

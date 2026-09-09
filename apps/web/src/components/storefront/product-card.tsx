@@ -19,11 +19,20 @@ export function ProductCard({ product }: { product: ProductView }) {
   const sellable = product.variants.filter((variant) => variant.isActive);
   const inStock = sellable.filter((variant) => variant.availableQty > 0);
   const hasChoice = sellable.length > 1;
+  const coverImage = product.images.find((image) => image.isPrimary) ?? product.images[0];
 
   return (
     <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <Link href={`/product/${product.slug}`} className="block">
-        <div className={`h-48 bg-gradient-to-br ${product.accent}`} />
+        <div className={`h-48 bg-gradient-to-br ${product.accent}`}>
+          {coverImage?.url || product.imageUrl ? (
+            <img
+              src={coverImage?.url ?? product.imageUrl ?? ""}
+              alt={coverImage?.altText ?? product.name}
+              className="h-full w-full object-cover"
+            />
+          ) : null}
+        </div>
       </Link>
       <div className="space-y-4 p-5">
         <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">

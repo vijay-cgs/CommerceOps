@@ -18,9 +18,18 @@ type Draft = {
   productId: string;
   optionValue: string;
   price: string;
+  imageUrl: string;
+  images: { url: string; isPrimary: boolean }[];
 };
 
-const emptyDraft: Draft = { sku: "", productId: "", optionValue: "", price: "" };
+const emptyDraft: Draft = {
+  sku: "",
+  productId: "",
+  optionValue: "",
+  price: "",
+  imageUrl: "",
+  images: [{ url: "", isPrimary: false }],
+};
 
 function toDraft(sku: AdminSkuView): Draft {
   return {
@@ -28,6 +37,10 @@ function toDraft(sku: AdminSkuView): Draft {
     productId: sku.productId,
     optionValue: sku.optionValue ?? "",
     price: (sku.priceCents / 100).toFixed(2),
+    imageUrl: sku.imageUrl ?? "",
+    images: sku.images.length
+      ? sku.images.map((image) => ({ url: image.url, isPrimary: image.isPrimary }))
+      : [{ url: "", isPrimary: false }],
   };
 }
 
@@ -53,6 +66,13 @@ function SkuEditForm({
       productId: draft.productId,
       optionValue: draft.optionValue.trim() || null,
       priceCents: Math.round(Number(draft.price) * 100),
+      imageUrl:
+        draft.images.find((image) => image.isPrimary)?.url.trim() ||
+        draft.images[0]?.url.trim() ||
+        null,
+      images: draft.images
+        .map((image, position) => ({ url: image.url.trim(), position, isPrimary: image.isPrimary }))
+        .filter((image) => image.url.length > 0),
       isActive: true,
     });
   }
@@ -108,6 +128,54 @@ function SkuEditForm({
           onChange={(event) => onChange({ ...draft, price: event.target.value })}
         />
       </label>
+      <div className="text-sm font-medium text-slate-700 md:col-span-2">
+        <p>SKU images</p>
+        <div className="mt-1 space-y-2">
+          {draft.images.map((image, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <input
+                className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-2"
+                placeholder="https://..."
+                type="url"
+                value={image.url}
+                onChange={(event) =>
+                  onChange({
+                    ...draft,
+                    images: draft.images.map((current, i) =>
+                      i === index ? { ...current, url: event.target.value } : current,
+                    ),
+                  })
+                }
+              />
+              <label className="flex shrink-0 items-center gap-1 text-xs font-normal">
+                <input
+                  type="checkbox"
+                  checked={image.isPrimary}
+                  onChange={() =>
+                    onChange({
+                      ...draft,
+                      images: draft.images.map((current, i) => ({
+                        ...current,
+                        isPrimary: i === index ? !image.isPrimary : false,
+                      })),
+                    })
+                  }
+                />
+                Cover
+              </label>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="mt-2 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold"
+          onClick={() =>
+            onChange({ ...draft, images: [...draft.images, { url: "", isPrimary: false }] })
+          }
+        >
+          Add image
+        </button>
+      </div>
       <div className="flex items-end gap-2">
         <button
           disabled={submitting}
@@ -172,6 +240,8 @@ export function SkuManager() {
         productId: sku.productId,
         optionValue: sku.optionValue,
         priceCents: sku.priceCents,
+        imageUrl: sku.imageUrl,
+        images: sku.images,
         isActive: false,
       }),
     onSuccess: refresh,
@@ -319,6 +389,8 @@ export function SkuManager() {
                                 productId: sku.productId,
                                 optionValue: sku.optionValue,
                                 priceCents: sku.priceCents,
+                                imageUrl: sku.imageUrl,
+                                images: sku.images,
                                 isActive: true,
                               })
                                 .then(refresh)

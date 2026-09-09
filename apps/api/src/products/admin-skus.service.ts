@@ -8,7 +8,7 @@ import type { SkuUpsertDto } from "./admin-skus.dto";
 type SkuRecord = Prisma.ProductVariantGetPayload<{
   include: {
     product: { select: { name: true; slug: true } };
-    skuRecord: true;
+    skuRecord: { include: { images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] } } };
     orderItems: { select: { id: true } };
   };
 }>;
@@ -21,6 +21,8 @@ function toSkuView(sku: SkuRecord, availableQty: number): AdminSkuView {
     priceCents: sku.priceCents,
     isActive: sku.isActive,
     isArchived: sku.skuRecord.isArchived,
+    imageUrl: sku.skuRecord.imageUrl,
+    images: sku.skuRecord.images,
     productId: sku.productId,
     productName: sku.product.name,
     productSlug: sku.product.slug,
@@ -37,12 +39,30 @@ async function stockForSku(sku: string): Promise<number> {
   return result._sum.availableQty ?? 0;
 }
 
+async function replaceSkuImages(
+  skuId: string,
+  images: SkuUpsertRequest["images"] | undefined,
+): Promise<void> {
+  if (!images) return;
+
+  await prismaClient.skuImage.deleteMany({ where: { skuId } });
+  await prismaClient.skuImage.createMany({
+    data: images.map((image, position) => ({
+      skuId,
+      url: image.url.trim(),
+      altText: image.altText?.trim() || null,
+      position: image.position ?? position,
+      isPrimary: image.isPrimary ?? position === 0,
+    })),
+  });
+}
+
 async function loadSku(id: string): Promise<SkuRecord> {
   return prismaClient.productVariant.findUniqueOrThrow({
     where: { id },
     include: {
       product: { select: { name: true, slug: true } },
-      skuRecord: true,
+      skuRecord: { include: { images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] } } },
       orderItems: { select: { id: true } },
     },
   });
@@ -64,7 +84,7 @@ export async function listSkus(search?: string): Promise<AdminSkuView[]> {
     take: 100,
     include: {
       product: { select: { name: true, slug: true } },
-      skuRecord: true,
+      skuRecord: { include: { images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] } } },
       orderItems: { select: { id: true } },
     },
   });
@@ -88,7 +108,18 @@ export async function createSku(payload: SkuUpsertDto): Promise<AdminSkuView> {
         HttpStatus.CONFLICT,
       );
     }
-    const globalSku = skuRecord ?? (await prismaClient.sku.create({ data: { code: payload.sku } }));
+    const globalSku =
+      skuRecord ??
+      (await prismaClient.sku.create({
+        data: { code: payload.sku, imageUrl: payload.imageUrl?.trim() || null },
+      }));
+    if (skuRecord && payload.imageUrl !== undefined) {
+      await prismaClient.sku.update({
+        where: { id: skuRecord.id },
+        data: { imageUrl: payload.imageUrl?.trim() || null },
+      });
+    }
+    await replaceSkuImages(globalSku.id, payload.images);
 
     const created = await prismaClient.productVariant.create({
       data: {
@@ -101,7 +132,9 @@ export async function createSku(payload: SkuUpsertDto): Promise<AdminSkuView> {
       },
       include: {
         product: { select: { name: true, slug: true } },
-        skuRecord: true,
+        skuRecord: {
+          include: { images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] } },
+        },
         orderItems: { select: { id: true } },
       },
     });
@@ -137,7 +170,18 @@ export async function updateSku(id: string, payload: SkuUpsertRequest): Promise<
       HttpStatus.CONFLICT,
     );
   }
-  const linkedSku = globalSku ?? (await prismaClient.sku.create({ data: { code: payload.sku } }));
+  const linkedSku =
+    globalSku ??
+    (await prismaClient.sku.create({
+      data: { code: payload.sku, imageUrl: payload.imageUrl?.trim() || null },
+    }));
+  if (globalSku && payload.imageUrl !== undefined) {
+    await prismaClient.sku.update({
+      where: { id: globalSku.id },
+      data: { imageUrl: payload.imageUrl?.trim() || null },
+    });
+  }
+  await replaceSkuImages(linkedSku.id, payload.images);
 
   const updated = await prismaClient.productVariant.update({
     where: { id },
@@ -151,7 +195,7 @@ export async function updateSku(id: string, payload: SkuUpsertRequest): Promise<
     },
     include: {
       product: { select: { name: true, slug: true } },
-      skuRecord: true,
+      skuRecord: { include: { images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] } } },
       orderItems: { select: { id: true } },
     },
   });
@@ -172,7 +216,7 @@ export async function archiveSku(id: string): Promise<AdminSkuView> {
     data: { isActive: false },
     include: {
       product: { select: { name: true, slug: true } },
-      skuRecord: true,
+      skuRecord: { include: { images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] } } },
       orderItems: { select: { id: true } },
     },
   });

@@ -19,6 +19,26 @@ import {
 const SKU_PATTERN = /^[A-Z0-9][A-Z0-9-]*$/;
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+export class ImageInputDto {
+  @IsString()
+  @MaxLength(500)
+  url!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  altText?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  position?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
+}
+
 export class ProductVariantDto {
   @IsOptional()
   @IsString()
@@ -78,6 +98,18 @@ export class ProductUpsertDto {
   @IsString()
   @MaxLength(120)
   accent?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  imageUrl?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => ImageInputDto)
+  images?: ImageInputDto[];
 
   @IsArray()
   @ArrayMaxSize(30)

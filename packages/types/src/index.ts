@@ -4,6 +4,21 @@ export type UserRole = "admin" | "inventory_manager" | "read_only" | "customer";
 
 export type ProductStatus = "draft" | "active" | "archived";
 
+export type ImageView = {
+  id: string;
+  url: string;
+  altText: string | null;
+  position: number;
+  isPrimary: boolean;
+};
+
+export type ImageInput = {
+  url: string;
+  altText?: string | null;
+  position?: number;
+  isPrimary?: boolean;
+};
+
 export type ProductVariantView = {
   id: string;
   productId: string;
@@ -13,6 +28,8 @@ export type ProductVariantView = {
   priceCents: number;
   isActive: boolean;
   availableQty: number;
+  imageUrl: string | null;
+  images: ImageView[];
 };
 
 export type ProductView = {
@@ -23,6 +40,8 @@ export type ProductView = {
   tag: string;
   category: string;
   accent: string;
+  imageUrl: string | null;
+  images: ImageView[];
   features: string[];
   status: ProductStatus;
   /** Label for the variant axis, e.g. "Size". Null when there is one variant. */
@@ -41,6 +60,8 @@ export type AdminSkuView = {
   priceCents: number;
   isActive: boolean;
   isArchived: boolean;
+  imageUrl: string | null;
+  images: ImageView[];
   productId: string;
   productName: string;
   productSlug: string;
@@ -53,6 +74,8 @@ export type SkuUpsertRequest = {
   optionValue?: string | null;
   priceCents: number;
   isActive?: boolean;
+  imageUrl?: string | null;
+  images?: ImageInput[];
 };
 
 export type AdminSkuListResponse = {
@@ -74,6 +97,8 @@ export type ProductUpsertRequest = {
   tag: string;
   category: string;
   accent: string;
+  imageUrl?: string | null;
+  images?: ImageInput[];
   features: string[];
   status: ProductStatus;
   optionName?: string | null;

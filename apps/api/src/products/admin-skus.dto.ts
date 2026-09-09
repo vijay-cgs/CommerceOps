@@ -9,6 +9,8 @@ import {
   Min,
   Max,
 } from "class-validator";
+import { Type } from "class-transformer";
+import { ImageInputDto } from "./admin-products.dto";
 
 const SKU_PATTERN = /^[A-Z0-9][A-Z0-9-]*$/;
 
@@ -37,4 +39,13 @@ export class SkuUpsertDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  imageUrl?: string | null;
+
+  @IsOptional()
+  @Type(() => ImageInputDto)
+  images?: ImageInputDto[];
 }

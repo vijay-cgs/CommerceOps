@@ -45,6 +45,7 @@ model Product {
   tag         String
   category    String
   accent      String
+  imageUrl    String?
   features    String[]
   status      ProductStatus @default(draft)
   // Label for the variant axis, e.g. "Size". Null when the product has a single
@@ -54,6 +55,7 @@ model Product {
   updatedAt   DateTime @updatedAt
 
   variants    ProductVariant[]
+  images      ProductImage[]
 
   @@index([status])
 }
@@ -61,11 +63,41 @@ model Product {
 model Sku {
   id         String   @id @default(cuid())
   code       String   @unique
+  imageUrl   String?
   isArchived Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   variants ProductVariant[]
+  images   SkuImage[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  altText   String?
+  position  Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, position])
+}
+
+model SkuImage {
+  id        String   @id @default(cuid())
+  skuId     String
+  url       String
+  altText   String?
+  position  Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  sku Sku @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@index([skuId, position])
 }
 
 model ProductVariant {

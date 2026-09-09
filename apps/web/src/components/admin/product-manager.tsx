@@ -69,6 +69,8 @@ export function ProductManager() {
         tag: product.tag,
         category: product.category,
         accent: product.accent,
+        imageUrl: product.imageUrl,
+        images: product.images,
         features: product.features,
         status,
         optionName: product.optionName,

@@ -13,6 +13,8 @@ type VariantDraft = {
   isActive: boolean;
 };
 
+type ImageDraft = { url: string; isPrimary: boolean };
+
 function toDraft(product: ProductView | null): {
   slug: string;
   name: string;
@@ -20,6 +22,8 @@ function toDraft(product: ProductView | null): {
   tag: string;
   category: string;
   accent: string;
+  imageUrl: string;
+  images: ImageDraft[];
   features: string;
   status: ProductStatus;
   optionName: string;
@@ -33,6 +37,8 @@ function toDraft(product: ProductView | null): {
       tag: "",
       category: "",
       accent: "from-sky-500 to-cyan-500",
+      imageUrl: "",
+      images: [{ url: "", isPrimary: false }],
       features: "",
       status: "draft",
       optionName: "",
@@ -47,6 +53,10 @@ function toDraft(product: ProductView | null): {
     tag: product.tag,
     category: product.category,
     accent: product.accent,
+    imageUrl: product.imageUrl ?? "",
+    images: product.images.length
+      ? product.images.map((image) => ({ url: image.url, isPrimary: image.isPrimary }))
+      : [{ url: "", isPrimary: false }],
     features: product.features.join("\n"),
     status: product.status,
     optionName: product.optionName ?? "",
@@ -116,6 +126,17 @@ export function ProductForm({
       tag: draft.tag.trim() || "New",
       category: draft.category.trim() || "General",
       accent: draft.accent.trim() || "from-sky-500 to-cyan-500",
+      imageUrl:
+        draft.images.find((image) => image.isPrimary)?.url.trim() ||
+        draft.images[0]?.url.trim() ||
+        null,
+      images: draft.images
+        .map((image, position) => ({
+          url: image.url.trim(),
+          position,
+          isPrimary: image.isPrimary,
+        }))
+        .filter((image) => image.url.length > 0),
       features: draft.features
         .split(/[\n|]/)
         .map((line) => line.trim())
@@ -206,7 +227,53 @@ export function ProductForm({
             onChange={(e) => set("accent", e.target.value)}
           />
         </label>
-        <label className="text-sm font-medium text-slate-700">
+        <div className="text-sm font-medium text-slate-700 md:order-3 md:col-span-2">
+          <p>Product images</p>
+          <div className="mt-1 space-y-2">
+            {draft.images.map((image, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2"
+                  placeholder="https://..."
+                  type="url"
+                  value={image.url}
+                  onChange={(event) =>
+                    set(
+                      "images",
+                      draft.images.map((current, i) =>
+                        i === index ? { ...current, url: event.target.value } : current,
+                      ),
+                    )
+                  }
+                />
+                <label className="flex shrink-0 items-center gap-1 text-xs font-normal">
+                  <input
+                    type="checkbox"
+                    checked={image.isPrimary}
+                    onChange={() =>
+                      set(
+                        "images",
+                        draft.images.map((current, i) => ({
+                          ...current,
+                          isPrimary: i === index ? !image.isPrimary : false,
+                        })),
+                      )
+                    }
+                  />
+                  Cover
+                </label>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="mt-2 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold"
+            onClick={() => set("images", [...draft.images, { url: "", isPrimary: false }])}
+          >
+            Add image
+          </button>
+        </div>
+        <label className="text-sm font-medium text-slate-700 md:order-2">
           Option name
           <input
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
