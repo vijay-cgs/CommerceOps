@@ -11,7 +11,6 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:seed": "prisma db seed",
     "lint": "eslint ./src --ext .ts",
     "typecheck": "tsc --noEmit",
     "test": "pnpm run test:unit",
@@ -42,8 +41,5 @@
     "swagger-ui-express": "^5.0.1",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
   }
 }

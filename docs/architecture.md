@@ -31,10 +31,11 @@ This document captures the bootstrap architecture approved for the first executi
 - Web signs in at /login and stores the session token in an httpOnly cookie.
 - Users self-register at /register and always receive the `customer` role.
 - API resolves request auth context from a bearer JWT issued by /api/v1/auth/login.
-- Staff roles (admin, inventory_manager, read_only) are provisioned by the seed script.
+- Staff roles (admin, inventory_manager, read_only) are assigned through an approved
+  administrative process; the application does not provision test staff automatically.
 
 ## Database baseline
 
 - Local PostgreSQL via docker compose
 - Prisma schema and initial migration scaffold under apps/api/prisma
-- Seed script scaffold available for incremental data seeding
+- No test-data seed script is included.

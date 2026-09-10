@@ -14,7 +14,6 @@ BOOT-004 and BOOT-005 will add database and authenticated identity integration.
 BOOT-004 status:
 
 - Prisma schema and initial migration scaffold exist under prisma/.
-- Seed script placeholder exists at prisma/seed.js.
 - DATABASE_URL example exists in .env.example.
 
 BOOT-005 status:
@@ -27,4 +26,6 @@ BOOT-005 status:
   - GET /api/v1/auth/me
 - Passwords are hashed with bcrypt (cost 12). Tokens are HS256 JWTs signed with `AUTH_JWT_SECRET`.
 - Roles: `admin`, `inventory_manager`, `read_only`, `customer`. Only the first three may read inventory; only the first two may adjust it.
-- Staff accounts are provisioned by the seed script when `SEED_STAFF_PASSWORD` is set.
+- Staff accounts are not provisioned automatically. Create an account through the
+  application registration flow, then assign elevated roles through an approved
+  administrative process.

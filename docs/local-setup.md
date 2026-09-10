@@ -27,7 +27,6 @@ pnpm db:up
 
 pnpm --filter @commerceops/api db:generate
 pnpm --filter @commerceops/api db:migrate
-pnpm --filter @commerceops/api db:seed
 
 ## 6) Start applications
 
@@ -38,19 +37,15 @@ Expected local ports:
 - web: 3000
 - api: 3001
 
-## 7) Authentication and seeded users
+## 7) Authentication and users
 
 Web routes:
 
 - /login
 - /register
 
-Self-registration always creates a `customer`. Staff accounts are created by the
-seed script when `SEED_STAFF_PASSWORD` is set in `apps/api/.env`:
-
-- Store Admin: admin@commerceops.local (`admin`)
-- Inventory Manager: inventory@commerceops.local (`inventory_manager`)
-- Read-only Ops: readonly@commerceops.local (`read_only`)
+Self-registration always creates a `customer`. Staff roles must be assigned through
+an approved administrative process.
 
 API calls authenticate with:
 

@@ -35,10 +35,9 @@ This repository contains the CommerceOps bootstrap implementation through BOOT-0
    - copy .env.example .env
 3. Start database:
    - pnpm db:up
-4. Run migrations and seed:
+4. Run migrations:
    - pnpm --filter @commerceops/api db:generate
    - pnpm --filter @commerceops/api db:migrate
-   - pnpm --filter @commerceops/api db:seed
 5. Start apps:
    - pnpm dev
 
@@ -54,12 +53,8 @@ This repository contains the CommerceOps bootstrap implementation through BOOT-0
 
 Shoppers register themselves at `/register` and always receive the `customer` role.
 
-Staff accounts are provisioned by the seed script. Set `SEED_STAFF_PASSWORD` in
-`apps/api/.env` and run `pnpm --filter @commerceops/api db:seed` to create:
-
-- admin@commerceops.local (`admin`)
-- inventory@commerceops.local (`inventory_manager`)
-- readonly@commerceops.local (`read_only`)
+Staff accounts are not provisioned automatically. Self-registration creates customer
+accounts; staff roles must be assigned through an approved administrative process.
 
 Web sign-in route:
 
@@ -75,7 +70,7 @@ API authentication:
 ## BOOT-004 Database Baseline
 
 - Local PostgreSQL service definition is available in docker-compose.yml.
-- Prisma schema, migration scaffold, and seed placeholder are in apps/api/prisma.
+- Prisma schema and migrations are in apps/api/prisma.
 
 Typical sequence once dependencies are installed:
 
@@ -83,4 +78,3 @@ Typical sequence once dependencies are installed:
 2. Run docker compose up -d postgres.
 3. Run pnpm --filter @commerceops/api db:generate.
 4. Run pnpm --filter @commerceops/api db:migrate.
-5. Run pnpm --filter @commerceops/api db:seed.
