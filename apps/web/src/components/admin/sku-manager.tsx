@@ -198,18 +198,19 @@ function SkuEditForm({
 export function SkuManager() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [error, setError] = useState<string | null>(null);
 
   const skusQuery = useQuery({
-    queryKey: [...queryKeys.adminSkus, search],
-    queryFn: () => fetchAdminSkus(search),
+    queryKey: [...queryKeys.adminSkus, search, page],
+    queryFn: () => fetchAdminSkus(search, page),
   });
   const productsQuery = useQuery({
     queryKey: queryKeys.adminProducts,
-    queryFn: () => fetchAdminProducts(""),
+    queryFn: () => fetchAdminProducts("", 1, 100),
   });
 
   async function refresh() {
@@ -303,7 +304,10 @@ export function SkuManager() {
           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
           placeholder="SKU or product"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
         />
       </label>
 
@@ -312,7 +316,7 @@ export function SkuManager() {
           <p className="mb-3 text-sm font-semibold text-sky-900">Create or link a SKU</p>
           <SkuEditForm
             draft={draft}
-            products={productsQuery.data ?? []}
+            products={productsQuery.data?.products ?? []}
             submitting={saveMutation.isPending}
             onChange={setDraft}
             onCancel={() => setCreating(false)}
@@ -346,7 +350,7 @@ export function SkuManager() {
               </tr>
             </thead>
             <tbody>
-              {skusQuery.data?.map((sku) => (
+              {skusQuery.data?.skus.map((sku) => (
                 <tr key={sku.id} className="border-t border-slate-100">
                   <td colSpan={7} className="p-0">
                     <div className="grid grid-cols-[1fr_1fr_1fr_0.8fr_0.6fr_0.7fr_1.3fr] items-center">
@@ -419,7 +423,7 @@ export function SkuManager() {
                     {editingId === sku.id ? (
                       <SkuEditForm
                         draft={draft}
-                        products={productsQuery.data ?? []}
+                        products={productsQuery.data?.products ?? []}
                         submitting={saveMutation.isPending}
                         onChange={setDraft}
                         onCancel={() => setEditingId(null)}
@@ -433,6 +437,27 @@ export function SkuManager() {
           </table>
         </div>
       )}
+      {!skusQuery.isLoading && !skusQuery.isError && skusQuery.data ? (
+        <div className="mt-6 flex items-center justify-between text-sm">
+          <button
+            type="button"
+            disabled={page === 1}
+            onClick={() => setPage((current) => current - 1)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-slate-600">Page {page}</span>
+          <button
+            type="button"
+            disabled={!skusQuery.data.hasMore}
+            onClick={() => setPage((current) => current + 1)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

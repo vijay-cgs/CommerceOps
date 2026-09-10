@@ -2,11 +2,20 @@
 
 import { notFound, useParams } from "next/navigation";
 import { ProductDetailView } from "../../../components/storefront/product-detail-view";
-import { useProducts } from "../../../lib/use-products";
+import { useQuery } from "@tanstack/react-query";
+import { fetchProducts } from "../../../lib/catalog-api";
+import { queryKeys } from "../../../lib/query-keys";
 
 export default function ProductDetailPage() {
   const params = useParams<{ slug: string }>();
-  const { data: products, isLoading, isError } = useProducts();
+  const {
+    data: products,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: queryKeys.products,
+    queryFn: fetchProducts,
+  });
 
   if (isLoading) {
     return (

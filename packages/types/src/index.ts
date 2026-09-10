@@ -51,6 +51,10 @@ export type ProductView = {
 
 export type ProductListResponse = {
   products: ProductView[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  totalCount: number;
 };
 
 export type AdminSkuView = {
@@ -80,6 +84,9 @@ export type SkuUpsertRequest = {
 
 export type AdminSkuListResponse = {
   skus: AdminSkuView[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
 };
 
 export type ProductVariantInput = {
@@ -163,6 +170,7 @@ export type InventoryContextResponse = {
   };
   levels: InventoryLevelView[];
   hasMore: boolean;
+  nextCursor?: string;
 };
 
 export type InventoryAdjustRequest = {

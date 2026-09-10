@@ -25,12 +25,17 @@ async function readEnvelope<T>(response: Response, fallback: string): Promise<T>
   return payload.data;
 }
 
-export async function fetchAdminProducts(search: string): Promise<ProductView[]> {
-  const query = search ? `?search=${encodeURIComponent(search)}` : "";
-  const response = await fetch(`/api/admin/products${query}`, { cache: "no-store" });
+export async function fetchAdminProducts(
+  search: string,
+  page = 1,
+  pageSize = 25,
+): Promise<ProductListResponse> {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (search) params.set("search", search);
+  const response = await fetch(`/api/admin/products?${params}`, { cache: "no-store" });
   const data = await readEnvelope<ProductListResponse>(response, "Unable to load products");
 
-  return data.products;
+  return data;
 }
 
 export async function createAdminProduct(payload: ProductUpsertRequest): Promise<ProductView> {

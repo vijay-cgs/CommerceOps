@@ -68,7 +68,11 @@ async function loadSku(id: string): Promise<SkuRecord> {
   });
 }
 
-export async function listSkus(search?: string): Promise<AdminSkuView[]> {
+export async function listSkus(
+  search?: string,
+  page = 1,
+  pageSize = 25,
+): Promise<{ skus: AdminSkuView[]; hasMore: boolean }> {
   const term = search?.trim();
   const records = await prismaClient.productVariant.findMany({
     where: term
@@ -81,7 +85,8 @@ export async function listSkus(search?: string): Promise<AdminSkuView[]> {
         }
       : undefined,
     orderBy: { sku: "asc" },
-    take: 100,
+    skip: (page - 1) * pageSize,
+    take: pageSize + 1,
     include: {
       product: { select: { name: true, slug: true } },
       skuRecord: { include: { images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] } } },
@@ -96,7 +101,12 @@ export async function listSkus(search?: string): Promise<AdminSkuView[]> {
   });
   const stockBySku = new Map(stock.map((level) => [level.sku, level._sum.availableQty ?? 0]));
 
-  return records.map((record) => toSkuView(record, stockBySku.get(record.sku) ?? 0));
+  const hasMore = records.length > pageSize;
+  const pageRecords = hasMore ? records.slice(0, pageSize) : records;
+  return {
+    skus: pageRecords.map((record) => toSkuView(record, stockBySku.get(record.sku) ?? 0)),
+    hasMore,
+  };
 }
 
 export async function createSku(payload: SkuUpsertDto): Promise<AdminSkuView> {

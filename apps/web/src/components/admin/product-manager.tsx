@@ -22,13 +22,14 @@ const STATUS_STYLES: Record<string, string> = {
 export function ProductManager() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<ProductView | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const productsQuery = useQuery({
-    queryKey: [...queryKeys.adminProducts, search],
-    queryFn: () => fetchAdminProducts(search),
+    queryKey: [...queryKeys.adminProducts, search, page],
+    queryFn: () => fetchAdminProducts(search, page),
   });
 
   async function refresh() {
@@ -133,7 +134,10 @@ export function ProductManager() {
           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
           placeholder="Name, slug or SKU"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
         />
       </label>
 
@@ -147,11 +151,11 @@ export function ProductManager() {
         <p className="mt-6 text-slate-600">Loading products…</p>
       ) : productsQuery.isError ? (
         <p className="mt-6 text-red-700">Unable to load products.</p>
-      ) : productsQuery.data?.length === 0 ? (
+      ) : productsQuery.data?.products.length === 0 ? (
         <p className="mt-6 text-slate-600">No products match that search.</p>
       ) : (
         <div className="mt-6 space-y-4">
-          {productsQuery.data?.map((product) => (
+          {productsQuery.data?.products.map((product) => (
             <article key={product.id} className="rounded-2xl border border-slate-200 bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -256,6 +260,27 @@ export function ProductManager() {
           ))}
         </div>
       )}
+      {!productsQuery.isLoading && !productsQuery.isError && productsQuery.data ? (
+        <div className="mt-6 flex items-center justify-between text-sm">
+          <button
+            type="button"
+            disabled={page === 1}
+            onClick={() => setPage((current) => current - 1)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-slate-600">Page {page}</span>
+          <button
+            type="button"
+            disabled={!productsQuery.data.hasMore}
+            onClick={() => setPage((current) => current + 1)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

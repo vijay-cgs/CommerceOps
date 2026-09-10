@@ -87,13 +87,15 @@ export function InventoryContextPanel() {
   const queryClient = useQueryClient();
   const [levelSearchInput, setLevelSearchInput] = useState("");
   const [levelSearch, setLevelSearch] = useState("");
+  const [inventoryCursor, setInventoryCursor] = useState("");
+  const [loadedLevels, setLoadedLevels] = useState<InventoryContextResponse["levels"]>([]);
   const [isLevelSuggestionsOpen, setIsLevelSuggestionsOpen] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<
     InventoryContextResponse["levels"][number] | null
   >(null);
   const contextQuery = useQuery({
-    queryKey: queryKeys.inventoryContext(levelSearch),
-    queryFn: () => fetchInventoryContext(levelSearch),
+    queryKey: queryKeys.inventoryContext(levelSearch, inventoryCursor),
+    queryFn: () => fetchInventoryContext(levelSearch, inventoryCursor),
     placeholderData: (previousData) => previousData,
   });
   const historyQuery = useQuery({
@@ -124,6 +126,15 @@ export function InventoryContextPanel() {
     return () => window.clearTimeout(timeoutId);
   }, [levelSearchInput]);
 
+  useEffect(() => {
+    if (!contextQuery.data) return;
+    setLoadedLevels((current) => {
+      if (!inventoryCursor) return contextQuery.data.levels;
+      const existing = new Set(current.map((level) => level.id));
+      return [...current, ...contextQuery.data.levels.filter((level) => !existing.has(level.id))];
+    });
+  }, [contextQuery.data, inventoryCursor]);
+
   const preview = useMemo(() => {
     if (!contextQuery.data) {
       return {
@@ -134,12 +145,12 @@ export function InventoryContextPanel() {
     }
 
     const levels =
-      selectedLevel && !contextQuery.data.levels.some((level) => level.id === selectedLevel.id)
-        ? [selectedLevel, ...contextQuery.data.levels]
-        : contextQuery.data.levels;
+      selectedLevel && !loadedLevels.some((level) => level.id === selectedLevel.id)
+        ? [selectedLevel, ...loadedLevels]
+        : loadedLevels;
 
     return validateDraft({ ...contextQuery.data, levels }, draft);
-  }, [contextQuery.data, draft, selectedLevel]);
+  }, [contextQuery.data, draft, loadedLevels, selectedLevel]);
 
   if (contextQuery.isLoading && !contextQuery.data) {
     return <p className="mt-3 text-gray-600">Loading inventory context...</p>;
@@ -156,16 +167,16 @@ export function InventoryContextPanel() {
   }
 
   const visibleLevels =
-    selectedLevel && !context.levels.some((level) => level.id === selectedLevel.id)
-      ? [selectedLevel, ...context.levels]
-      : context.levels;
+    selectedLevel && !loadedLevels.some((level) => level.id === selectedLevel.id)
+      ? [selectedLevel, ...loadedLevels]
+      : loadedLevels;
 
   function getSelectedLevel() {
     if (selectedLevel?.id === draft.inventoryLevelId) {
       return selectedLevel;
     }
 
-    return contextQuery.data?.levels.find((level) => level.id === draft.inventoryLevelId);
+    return loadedLevels.find((level) => level.id === draft.inventoryLevelId);
   }
 
   function updateDraft<K extends keyof AdjustmentDraft>(key: K, value: AdjustmentDraft[K]) {
@@ -187,6 +198,7 @@ export function InventoryContextPanel() {
 
   function handleLevelInputChange(value: string) {
     setLevelSearchInput(value);
+    setInventoryCursor("");
     setIsLevelSuggestionsOpen(true);
     const selected = visibleLevels.find((level) => getLevelLabel(level) === value);
 
@@ -387,9 +399,17 @@ export function InventoryContextPanel() {
               ) : null}
             </div>
             {context.hasMore ? (
-              <p className="mt-1 text-xs text-gray-500">
-                Showing the first 50 matches. Refine your search to find more.
-              </p>
+              <div className="mt-1 flex items-center justify-between gap-3 text-xs text-gray-500">
+                <span>Showing {loadedLevels.length} levels. Load more to continue.</span>
+                <button
+                  type="button"
+                  disabled={contextQuery.isFetching || !context.nextCursor}
+                  onClick={() => setInventoryCursor(context.nextCursor ?? "")}
+                  className="rounded-md border border-slate-300 px-2 py-1 font-semibold text-slate-700 disabled:opacity-40"
+                >
+                  Load more
+                </button>
+              </div>
             ) : null}
           </div>
 

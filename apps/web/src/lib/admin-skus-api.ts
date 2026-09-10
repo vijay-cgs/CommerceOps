@@ -16,10 +16,15 @@ async function read<T>(response: Response, fallback: string): Promise<T> {
   return payload.data;
 }
 
-export async function fetchAdminSkus(search: string): Promise<AdminSkuView[]> {
-  const query = search ? `?search=${encodeURIComponent(search)}` : "";
-  const response = await fetch(`/api/admin/skus${query}`, { cache: "no-store" });
-  return (await read<AdminSkuListResponse>(response, "Unable to load SKUs")).skus;
+export async function fetchAdminSkus(
+  search: string,
+  page = 1,
+  pageSize = 25,
+): Promise<AdminSkuListResponse> {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (search) params.set("search", search);
+  const response = await fetch(`/api/admin/skus?${params}`, { cache: "no-store" });
+  return read<AdminSkuListResponse>(response, "Unable to load SKUs");
 }
 
 export async function createAdminSku(payload: SkuUpsertRequest): Promise<AdminSkuView> {

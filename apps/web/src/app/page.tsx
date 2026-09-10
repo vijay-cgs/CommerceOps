@@ -9,7 +9,7 @@ import { useProducts } from "../lib/use-products";
 export default function HomePage() {
   const auth = useAuthUser();
   const { data: products } = useProducts();
-  const featuredProducts = (products ?? []).slice(0, 3);
+  const featuredProducts = (products?.products ?? []).slice(0, 3);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">

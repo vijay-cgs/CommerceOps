@@ -83,7 +83,7 @@ export class InventoryController {
     await ensureInventoryLevelsForActiveVariants();
 
     const normalizedSearch = search.trim();
-    const pageSize = 50;
+    const pageSize = 10;
     const levels = await prismaClient.inventoryLevel.findMany({
       where: normalizedSearch
         ? {
@@ -117,6 +117,7 @@ export class InventoryController {
         updatedAt: level.updatedAt.toISOString(),
       })),
       hasMore,
+      nextCursor: hasMore ? page[page.length - 1]?.id : undefined,
     };
   }
 

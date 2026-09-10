@@ -61,25 +61,39 @@ async function loadView(productId: string): Promise<ProductView> {
   return view;
 }
 
-export async function listAllProducts(search?: string): Promise<ProductView[]> {
+export async function listAllProducts(
+  search?: string,
+  page = 1,
+  pageSize = 25,
+): Promise<{ products: ProductView[]; hasMore: boolean; totalCount: number }> {
   const term = search?.trim();
+  const where = term
+    ? {
+        OR: [
+          { name: { contains: term, mode: "insensitive" as const } },
+          { slug: { contains: term, mode: "insensitive" as const } },
+          { variants: { some: { sku: { contains: term, mode: "insensitive" as const } } } },
+        ],
+      }
+    : undefined;
 
-  const products = await prismaClient.product.findMany({
-    where: term
-      ? {
-          OR: [
-            { name: { contains: term, mode: "insensitive" } },
-            { slug: { contains: term, mode: "insensitive" } },
-            { variants: { some: { sku: { contains: term, mode: "insensitive" } } } },
-          ],
-        }
-      : undefined,
-    orderBy: { updatedAt: "desc" },
-    include: PRODUCT_INCLUDE,
-    take: 100,
-  });
+  const [products, totalCount] = await Promise.all([
+    prismaClient.product.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      include: PRODUCT_INCLUDE,
+      skip: (page - 1) * pageSize,
+      take: pageSize + 1,
+    }),
+    prismaClient.product.count({ where }),
+  ]);
 
-  return toProductViews(products);
+  const hasMore = products.length > pageSize;
+  return {
+    products: await toProductViews(hasMore ? products.slice(0, pageSize) : products),
+    hasMore,
+    totalCount,
+  };
 }
 
 export async function createProduct(payload: ProductUpsertDto): Promise<ProductView> {

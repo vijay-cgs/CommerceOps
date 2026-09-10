@@ -48,10 +48,19 @@ function requireProductManager(req: Request): Express.AuthContext {
 @Controller("admin/products")
 export class AdminProductsController {
   @Get()
-  async list(@Req() req: Request, @Query("search") search?: string): Promise<ProductListResponse> {
+  async list(
+    @Req() req: Request,
+    @Query("search") search?: string,
+    @Query("page") page = "1",
+    @Query("pageSize") pageSize = "25",
+  ): Promise<ProductListResponse> {
     requireProductManager(req);
 
-    return { products: await listAllProducts(search) };
+    const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
+    const safePageSize = Math.min(100, Math.max(1, Number.parseInt(pageSize, 10) || 25));
+    const result = await listAllProducts(search, safePage, safePageSize);
+
+    return { ...result, page: safePage, pageSize: safePageSize };
   }
 
   @Post()

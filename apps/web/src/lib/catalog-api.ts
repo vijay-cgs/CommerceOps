@@ -34,10 +34,17 @@ async function readEnvelope<T>(response: Response, fallback: string): Promise<T>
   return payload.data;
 }
 
-export async function fetchProducts(): Promise<ProductView[]> {
-  const response = await fetch("/api/products", { cache: "no-store" });
+export async function fetchProductsPage(page = 1, pageSize = 24): Promise<ProductListResponse> {
+  const response = await fetch(`/api/products?page=${page}&pageSize=${pageSize}`, {
+    cache: "no-store",
+  });
   const data = await readEnvelope<ProductListResponse>(response, "Unable to load products");
 
+  return data;
+}
+
+export async function fetchProducts(): Promise<ProductView[]> {
+  const data = await fetchProductsPage(1, 1000);
   return data.products;
 }
 
