@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ProductUpsertRequest, ProductView } from "@commerceops/types";
 import {
@@ -12,6 +13,8 @@ import {
 import { formatCents } from "../../lib/money";
 import { queryKeys } from "../../lib/query-keys";
 import { ProductForm } from "./product-form";
+import type { ProductStockUpdate } from "./product-form";
+import { fetchInventoryContext, submitInventoryAdjustment } from "../../lib/inventory-api";
 
 const STATUS_STYLES: Record<string, string> = {
   active: "bg-emerald-100 text-emerald-800",
@@ -20,6 +23,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export function ProductManager() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -40,8 +44,37 @@ export function ProductManager() {
   }
 
   const saveMutation = useMutation({
-    mutationFn: (payload: ProductUpsertRequest) =>
-      editing ? updateAdminProduct(editing.id, payload) : createAdminProduct(payload),
+    mutationFn: async ({
+      payload,
+      stockUpdates,
+    }: {
+      payload: ProductUpsertRequest;
+      stockUpdates: ProductStockUpdate[];
+    }) => {
+      const savedProduct = editing
+        ? await updateAdminProduct(editing.id, payload)
+        : await createAdminProduct(payload);
+
+      for (const update of stockUpdates) {
+        const variant = savedProduct.variants.find((candidate) => candidate.sku === update.sku);
+        if (!variant) continue;
+
+        const level = update.inventoryLevelId
+          ? { id: update.inventoryLevelId, expectedVersion: update.expectedVersion ?? 1 }
+          : (await fetchInventoryContext("", "", update.sku)).levels[0];
+        if (!level) continue;
+
+        await submitInventoryAdjustment({
+          inventoryLevelId: level.id,
+          reasonCode: "stock_count_correction",
+          deltaQty: update.deltaQty,
+          expectedVersion: level.expectedVersion,
+          idempotencyKey: crypto.randomUUID(),
+        });
+      }
+
+      return savedProduct;
+    },
     onSuccess: async () => {
       setEditing(null);
       setCreating(false);
@@ -67,6 +100,7 @@ export function ProductManager() {
         slug: product.slug,
         name: product.name,
         description: product.description,
+        shortDescription: product.shortDescription,
         tag: product.tag,
         category: product.category,
         accent: product.accent,
@@ -102,7 +136,7 @@ export function ProductManager() {
           setEditing(null);
           setError(null);
         }}
-        onSubmit={(payload) => saveMutation.mutate(payload)}
+        onSubmit={(payload, stockUpdates) => saveMutation.mutate({ payload, stockUpdates })}
       />
     );
   }
@@ -175,8 +209,7 @@ export function ProductManager() {
                   <button
                     type="button"
                     onClick={() => {
-                      setEditing(product);
-                      setError(null);
+                      router.push(`/admin/products/${product.id}`);
                     }}
                     className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                   >
@@ -260,7 +293,10 @@ export function ProductManager() {
           ))}
         </div>
       )}
-      {!productsQuery.isLoading && !productsQuery.isError && productsQuery.data ? (
+      {!productsQuery.isLoading &&
+      !productsQuery.isError &&
+      productsQuery.data &&
+      (page > 1 || productsQuery.data.hasMore) ? (
         <div className="mt-6 flex items-center justify-between text-sm">
           <button
             type="button"

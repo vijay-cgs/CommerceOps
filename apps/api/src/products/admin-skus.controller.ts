@@ -3,10 +3,17 @@ import type { Request } from "express";
 import type { AdminSkuListResponse, AdminSkuView } from "@commerceops/types";
 import { requireProductManager } from "./product-manager-auth";
 import { SkuUpsertDto } from "./admin-skus.dto";
-import { archiveSku, createSku, listSkus, updateSku } from "./admin-skus.service";
+import { archiveSku, createSku, getNextSkuCode, listSkus, updateSku } from "./admin-skus.service";
 
 @Controller("admin/skus")
 export class AdminSkusController {
+  @Get("next")
+  async next(@Req() req: Request): Promise<{ sku: string }> {
+    requireProductManager(req);
+
+    return { sku: await getNextSkuCode() };
+  }
+
   @Get()
   async list(
     @Req() req: Request,

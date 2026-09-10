@@ -40,6 +40,23 @@ export async function ensureInventoryLevelsForSkus(
   }
 }
 
+export async function resetInventoryLevelsForSkus(
+  skus: string[],
+  tx?: Prisma.TransactionClient,
+): Promise<void> {
+  const client = tx ?? prismaClient;
+  const uniqueSkus = [...new Set(skus.map((sku) => sku.trim()).filter(Boolean))];
+
+  if (uniqueSkus.length === 0) {
+    return;
+  }
+
+  await client.inventoryLevel.updateMany({
+    where: { sku: { in: uniqueSkus }, locationId: DEFAULT_LOCATION_ID },
+    data: { availableQty: 0, reservedQty: 0, incomingQty: 0, expectedVersion: 1 },
+  });
+}
+
 export async function ensureInventoryLevelsForActiveVariants(
   tx?: Prisma.TransactionClient,
 ): Promise<void> {

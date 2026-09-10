@@ -17,6 +17,7 @@ import { ProductUpsertDto } from "./admin-products.dto";
 import {
   archiveProduct,
   createProduct,
+  getProduct,
   listAllProducts,
   updateProduct,
 } from "./admin-products.service";
@@ -68,6 +69,13 @@ export class AdminProductsController {
     requireProductManager(req);
 
     return createProduct(body);
+  }
+
+  @Get(":id")
+  async get(@Req() req: Request, @Param("id") id: string): Promise<ProductView> {
+    requireProductManager(req);
+
+    return getProduct(id);
   }
 
   @Patch(":id")

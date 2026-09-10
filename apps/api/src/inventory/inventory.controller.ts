@@ -77,22 +77,26 @@ export class InventoryController {
     @Req() req: Request,
     @Query("search") search = "",
     @Query("cursor") cursor = "",
+    @Query("sku") sku = "",
   ): Promise<InventoryContextResponse> {
     const auth = requireInventoryViewer(req);
 
     await ensureInventoryLevelsForActiveVariants();
 
     const normalizedSearch = search.trim();
+    const normalizedSku = sku.trim();
     const pageSize = 10;
     const levels = await prismaClient.inventoryLevel.findMany({
-      where: normalizedSearch
-        ? {
-            OR: [
-              { sku: { contains: normalizedSearch, mode: "insensitive" } },
-              { locationId: { contains: normalizedSearch, mode: "insensitive" } },
-            ],
-          }
-        : undefined,
+      where: normalizedSku
+        ? { sku: normalizedSku }
+        : normalizedSearch
+          ? {
+              OR: [
+                { sku: { contains: normalizedSearch, mode: "insensitive" } },
+                { locationId: { contains: normalizedSearch, mode: "insensitive" } },
+              ],
+            }
+          : undefined,
       orderBy: [{ locationId: "asc" }, { sku: "asc" }],
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       take: pageSize + 1,

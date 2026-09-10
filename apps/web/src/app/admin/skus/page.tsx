@@ -1,5 +1,5 @@
-import { SkuManager } from "../../../components/admin/sku-manager";
+import { redirect } from "next/navigation";
 
 export default function AdminSkusPage() {
-  return <SkuManager />;
+  redirect("/inventory");
 }

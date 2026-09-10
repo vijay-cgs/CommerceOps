@@ -44,8 +44,18 @@ export async function fetchProductsPage(page = 1, pageSize = 24): Promise<Produc
 }
 
 export async function fetchProducts(): Promise<ProductView[]> {
-  const data = await fetchProductsPage(1, 1000);
-  return data.products;
+  const products: ProductView[] = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const data = await fetchProductsPage(page, 1000);
+    products.push(...data.products);
+    hasMore = data.hasMore;
+    page += 1;
+  }
+
+  return products;
 }
 
 export async function fetchProduct(slug: string): Promise<ProductView> {

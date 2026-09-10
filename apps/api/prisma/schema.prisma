@@ -42,6 +42,7 @@ model Product {
   slug        String   @unique
   name        String
   description String
+  shortDescription String @default("")
   tag         String
   category    String
   accent      String

@@ -2,7 +2,10 @@ import { Prisma } from "@prisma/client";
 import { HttpException, HttpStatus } from "@nestjs/common";
 import type { ProductView } from "@commerceops/types";
 import { prismaClient } from "../prisma/prisma.client";
-import { ensureInventoryLevelsForSkus } from "../inventory/inventory-helper";
+import {
+  ensureInventoryLevelsForSkus,
+  resetInventoryLevelsForSkus,
+} from "../inventory/inventory-helper";
 import type { ProductUpsertDto, ProductVariantDto } from "./admin-products.dto";
 import { PRODUCT_INCLUDE, toProductViews } from "./product-view";
 import { getOrCreateSku } from "./sku-helper";
@@ -50,7 +53,7 @@ function assertOptionShape(payload: ProductUpsertDto): void {
   }
 }
 
-async function loadView(productId: string): Promise<ProductView> {
+export async function getProduct(productId: string): Promise<ProductView> {
   const product = await prismaClient.product.findUniqueOrThrow({
     where: { id: productId },
     include: PRODUCT_INCLUDE,
@@ -59,6 +62,10 @@ async function loadView(productId: string): Promise<ProductView> {
   const [view] = await toProductViews([product]);
 
   return view;
+}
+
+async function loadView(productId: string): Promise<ProductView> {
+  return getProduct(productId);
 }
 
 export async function listAllProducts(
@@ -100,12 +107,23 @@ export async function createProduct(payload: ProductUpsertDto): Promise<ProductV
   assertUniqueSkus(payload.variants);
   assertOptionShape(payload);
 
+  const requestedSkus = payload.variants.map((variant) => variant.sku);
+  const existingLinks = await prismaClient.productVariant.findMany({
+    where: { sku: { in: requestedSkus } },
+    select: { sku: true },
+  });
+
+  if (existingLinks.length > 0) {
+    throw conflict(`SKU ${existingLinks[0].sku} is already linked to a product`);
+  }
+
   try {
     const created = await prismaClient.product.create({
       data: {
         slug: payload.slug,
         name: payload.name.trim(),
         description: payload.description.trim(),
+        shortDescription: payload.shortDescription?.trim() || "",
         tag: payload.tag?.trim() || "New",
         category: payload.category.trim(),
         accent: payload.accent?.trim() || "from-sky-500 to-cyan-500",
@@ -139,7 +157,8 @@ export async function createProduct(payload: ProductUpsertDto): Promise<ProductV
         })),
       });
     }
-    await ensureInventoryLevelsForSkus(payload.variants.map((v) => v.sku));
+    await ensureInventoryLevelsForSkus(requestedSkus);
+    await resetInventoryLevelsForSkus(requestedSkus);
 
     return loadView(created.id);
   } catch (error) {
@@ -189,6 +208,7 @@ export async function updateProduct(id: string, payload: ProductUpsertDto): Prom
           slug: payload.slug,
           name: payload.name.trim(),
           description: payload.description.trim(),
+          shortDescription: payload.shortDescription?.trim() || "",
           tag: payload.tag?.trim() || "New",
           category: payload.category.trim(),
           accent: payload.accent?.trim() || "from-sky-500 to-cyan-500",

@@ -87,6 +87,11 @@ export class ProductUpsertDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(240)
+  shortDescription?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(60)
   tag?: string;
 

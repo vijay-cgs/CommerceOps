@@ -37,6 +37,7 @@ export type ProductView = {
   slug: string;
   name: string;
   description: string;
+  shortDescription: string;
   tag: string;
   category: string;
   accent: string;
@@ -101,6 +102,7 @@ export type ProductUpsertRequest = {
   slug: string;
   name: string;
   description: string;
+  shortDescription: string;
   tag: string;
   category: string;
   accent: string;

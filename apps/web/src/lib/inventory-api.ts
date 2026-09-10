@@ -34,10 +34,12 @@ export class InventoryApiError extends Error {
 export async function fetchInventoryContext(
   search = "",
   cursor = "",
+  sku = "",
 ): Promise<InventoryContextResponse> {
   const params = new URLSearchParams();
   if (search) params.set("search", search);
   if (cursor) params.set("cursor", cursor);
+  if (sku) params.set("sku", sku);
   const query = params.toString();
   const response = await fetch(`/api/inventory/context${query ? `?${query}` : ""}`, {
     method: "GET",

@@ -18,6 +18,7 @@ type ProductRecord = {
   slug: string;
   name: string;
   description: string;
+  shortDescription: string;
   tag: string;
   category: string;
   accent: string;
@@ -63,6 +64,7 @@ export function toProductView(product: ProductRecord, stock: Map<string, number>
     slug: product.slug,
     name: product.name,
     description: product.description,
+    shortDescription: product.shortDescription,
     tag: product.tag,
     category: product.category,
     accent: product.accent,

@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AdminSkuView, ProductView, SkuUpsertRequest } from "@commerceops/types";
+import type { AdminSkuView, InventoryLevelView, SkuUpsertRequest } from "@commerceops/types";
 import {
   archiveAdminSku,
   createAdminSku,
   fetchAdminSkus,
   updateAdminSku,
 } from "../../lib/admin-skus-api";
-import { fetchAdminProducts } from "../../lib/admin-products-api";
 import { formatCents } from "../../lib/money";
 import { queryKeys } from "../../lib/query-keys";
+import { fetchInventoryContext, submitInventoryAdjustment } from "../../lib/inventory-api";
 
 type Draft = {
   sku: string;
@@ -20,6 +21,12 @@ type Draft = {
   price: string;
   imageUrl: string;
   images: { url: string; isPrimary: boolean }[];
+};
+
+type StockAdjustmentDraft = {
+  reasonCode: string;
+  deltaQty: string;
+  note: string;
 };
 
 const emptyDraft: Draft = {
@@ -46,136 +53,251 @@ function toDraft(sku: AdminSkuView): Draft {
 
 function SkuEditForm({
   draft,
-  products,
+  productName,
   submitting,
   onChange,
   onCancel,
   onSubmit,
+  inventoryLevel,
+  canAdjustInventory,
 }: {
   draft: Draft;
-  products: ProductView[];
+  productName: string;
   submitting: boolean;
   onChange: (draft: Draft) => void;
   onCancel: () => void;
-  onSubmit: (payload: SkuUpsertRequest) => void;
+  onSubmit: (payload: SkuUpsertRequest, adjustment?: StockAdjustmentDraft) => void;
+  inventoryLevel?: InventoryLevelView;
+  canAdjustInventory: boolean;
 }) {
+  const [adjustment, setAdjustment] = useState<StockAdjustmentDraft>({
+    reasonCode: "",
+    deltaQty: "",
+    note: "",
+  });
+  const [formError, setFormError] = useState<string | null>(null);
+
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    onSubmit({
-      sku: draft.sku.trim().toUpperCase(),
-      productId: draft.productId,
-      optionValue: draft.optionValue.trim() || null,
-      priceCents: Math.round(Number(draft.price) * 100),
-      imageUrl:
-        draft.images.find((image) => image.isPrimary)?.url.trim() ||
-        draft.images[0]?.url.trim() ||
-        null,
-      images: draft.images
-        .map((image, position) => ({ url: image.url.trim(), position, isPrimary: image.isPrimary }))
-        .filter((image) => image.url.length > 0),
-      isActive: true,
-    });
+    setFormError(null);
+    const hasAdjustment = adjustment.deltaQty.trim().length > 0;
+    const parsedDelta = Number.parseInt(adjustment.deltaQty, 10);
+
+    if (
+      hasAdjustment &&
+      (!adjustment.reasonCode || !Number.isInteger(parsedDelta) || parsedDelta === 0)
+    ) {
+      setFormError("Choose a reason and enter a non-zero integer adjustment.");
+      return;
+    }
+
+    if (hasAdjustment && inventoryLevel && inventoryLevel.availableQty + parsedDelta < 0) {
+      setFormError("This adjustment would make available stock negative.");
+      return;
+    }
+
+    onSubmit(
+      {
+        sku: draft.sku.trim().toUpperCase(),
+        productId: draft.productId,
+        optionValue: draft.optionValue.trim() || null,
+        priceCents: Math.round(Number(draft.price) * 100),
+        imageUrl:
+          draft.images.find((image) => image.isPrimary)?.url.trim() ||
+          draft.images[0]?.url.trim() ||
+          null,
+        images: draft.images
+          .map((image, position) => ({
+            url: image.url.trim(),
+            position,
+            isPrimary: image.isPrimary,
+          }))
+          .filter((image) => image.url.length > 0),
+        isActive: true,
+      },
+      hasAdjustment ? adjustment : undefined,
+    );
   }
 
+  const parsedAdjustment = Number.parseInt(adjustment.deltaQty, 10);
+  const hasAdjustmentPreview =
+    Boolean(inventoryLevel) && Number.isInteger(parsedAdjustment) && parsedAdjustment !== 0;
+  const previewAvailable = hasAdjustmentPreview
+    ? (inventoryLevel?.availableQty ?? 0) + parsedAdjustment
+    : inventoryLevel?.availableQty;
+  const previewOnHand = hasAdjustmentPreview
+    ? (inventoryLevel?.availableQty ?? 0) + (inventoryLevel?.reservedQty ?? 0) + parsedAdjustment
+    : inventoryLevel
+      ? inventoryLevel.availableQty + inventoryLevel.reservedQty
+      : undefined;
+
   return (
-    <form
-      onSubmit={submit}
-      className="grid gap-3 bg-slate-50 p-4 md:grid-cols-[1.2fr_1.5fr_1fr_0.8fr_auto]"
-    >
-      <label className="text-sm font-medium text-slate-700">
-        SKU
-        <input
-          required
-          pattern="[A-Z0-9][A-Z0-9-]*"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 font-mono uppercase"
-          value={draft.sku}
-          onChange={(event) => onChange({ ...draft, sku: event.target.value })}
-        />
-      </label>
-      <label className="text-sm font-medium text-slate-700">
-        Product
-        <select
-          required
-          className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2"
-          value={draft.productId}
-          onChange={(event) => onChange({ ...draft, productId: event.target.value })}
-        >
-          <option value="">Select product</option>
-          {products.map((product) => (
-            <option key={product.id} value={product.id}>
-              {product.name} (/{product.slug})
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="text-sm font-medium text-slate-700">
-        Option value
-        <input
-          className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2"
-          value={draft.optionValue}
-          onChange={(event) => onChange({ ...draft, optionValue: event.target.value })}
-        />
-      </label>
-      <label className="text-sm font-medium text-slate-700">
-        Price
-        <input
-          required
-          min="0"
-          step="0.01"
-          type="number"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2"
-          value={draft.price}
-          onChange={(event) => onChange({ ...draft, price: event.target.value })}
-        />
-      </label>
-      <div className="text-sm font-medium text-slate-700 md:col-span-2">
-        <p>SKU images</p>
-        <div className="mt-1 space-y-2">
-          {draft.images.map((image, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <input
-                className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-2"
-                placeholder="https://..."
-                type="url"
-                value={image.url}
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    images: draft.images.map((current, i) =>
-                      i === index ? { ...current, url: event.target.value } : current,
-                    ),
-                  })
-                }
-              />
-              <label className="flex shrink-0 items-center gap-1 text-xs font-normal">
+    <form onSubmit={submit} className="space-y-4 bg-slate-50 p-4">
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-slate-300 text-2xl text-slate-500">
+            +
+          </div>
+          <div>
+            <h3 className="font-semibold text-slate-900">Variant details</h3>
+            <p className="text-sm text-slate-500">
+              {productName || "Product variant"}, {draft.sku}
+            </p>
+          </div>
+        </div>
+      </section>
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <h3 className="font-semibold text-slate-900">Price</h3>
+        <label className="mt-1 block text-sm font-medium text-slate-700">
+          <input
+            required
+            min="0"
+            step="0.01"
+            type="number"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2"
+            value={draft.price}
+            onChange={(event) => onChange({ ...draft, price: event.target.value })}
+          />
+        </label>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+          <span className="rounded bg-slate-100 px-2 py-1">Compare-at</span>
+          <span className="rounded bg-slate-100 px-2 py-1">Unit price</span>
+          <span className="rounded bg-slate-100 px-2 py-1">Charge tax</span>
+          <span className="rounded bg-slate-100 px-2 py-1">Cost per item</span>
+        </div>
+      </section>
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="text-sm font-medium text-slate-700">
+          <p>SKU images</p>
+          <div className="mt-1 space-y-2">
+            {draft.images.map((image, index) => (
+              <div key={index} className="flex items-center gap-2">
                 <input
-                  type="checkbox"
-                  checked={image.isPrimary}
-                  onChange={() =>
+                  className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-2"
+                  placeholder="https://..."
+                  type="url"
+                  value={image.url}
+                  onChange={(event) =>
                     onChange({
                       ...draft,
-                      images: draft.images.map((current, i) => ({
-                        ...current,
-                        isPrimary: i === index ? !image.isPrimary : false,
-                      })),
+                      images: draft.images.map((current, i) =>
+                        i === index ? { ...current, url: event.target.value } : current,
+                      ),
                     })
                   }
                 />
-                Cover
-              </label>
-            </div>
-          ))}
+                <label className="flex shrink-0 items-center gap-1 text-xs font-normal">
+                  <input
+                    type="checkbox"
+                    checked={image.isPrimary}
+                    onChange={() =>
+                      onChange({
+                        ...draft,
+                        images: draft.images.map((current, i) => ({
+                          ...current,
+                          isPrimary: i === index ? !image.isPrimary : false,
+                        })),
+                      })
+                    }
+                  />
+                  Cover
+                </label>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="mt-2 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold"
+            onClick={() =>
+              onChange({ ...draft, images: [...draft.images, { url: "", isPrimary: false }] })
+            }
+          >
+            Add image
+          </button>
         </div>
-        <button
-          type="button"
-          className="mt-2 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold"
-          onClick={() =>
-            onChange({ ...draft, images: [...draft.images, { url: "", isPrimary: false }] })
-          }
-        >
-          Add image
-        </button>
-      </div>
+      </section>
+      {inventoryLevel ? (
+        <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-semibold text-slate-900">Inventory</h3>
+            <span className="text-slate-500">Inventory tracked</span>
+          </div>
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            <div className="grid grid-cols-5 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+              <span>Location</span>
+              <span className="text-right">Unavailable</span>
+              <span className="text-right">Committed</span>
+              <span className="text-right">Available</span>
+              <span className="text-right">On hand</span>
+            </div>
+            <div className="grid grid-cols-5 px-3 py-3 text-slate-700">
+              <span>{inventoryLevel.locationId}</span>
+              <span className="text-right">0</span>
+              <span className="text-right">{inventoryLevel.reservedQty}</span>
+              <span className="text-right font-semibold">
+                {inventoryLevel.availableQty}
+                {hasAdjustmentPreview ? ` -> ${previewAvailable}` : ""}
+              </span>
+              <span className="text-right">
+                {inventoryLevel.availableQty + inventoryLevel.reservedQty}
+                {hasAdjustmentPreview ? ` -> ${previewOnHand}` : ""}
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500">
+            Adjust stock below and save with the SKU changes.
+          </p>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="font-medium text-slate-700">
+              Reason
+              <select
+                className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2"
+                disabled={!canAdjustInventory}
+                value={adjustment.reasonCode}
+                onChange={(event) =>
+                  setAdjustment((current) => ({ ...current, reasonCode: event.target.value }))
+                }
+              >
+                <option value="">No stock change</option>
+                <option value="stock_count_correction">Stock count correction</option>
+                <option value="damaged_write_off">Damaged write-off</option>
+                <option value="manual_restock">Manual restock</option>
+                <option value="operations_adjustment">Operations adjustment</option>
+              </select>
+            </label>
+            <label className="font-medium text-slate-700">
+              Adjustment quantity
+              <input
+                className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2"
+                disabled={!canAdjustInventory}
+                inputMode="numeric"
+                placeholder="+10 or -2"
+                type="number"
+                value={adjustment.deltaQty}
+                onChange={(event) =>
+                  setAdjustment((current) => ({ ...current, deltaQty: event.target.value }))
+                }
+              />
+            </label>
+            <label className="font-medium text-slate-700">
+              Note
+              <input
+                className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2"
+                disabled={!canAdjustInventory}
+                maxLength={240}
+                value={adjustment.note}
+                onChange={(event) =>
+                  setAdjustment((current) => ({ ...current, note: event.target.value }))
+                }
+              />
+            </label>
+          </div>
+          {!canAdjustInventory ? (
+            <p className="text-xs text-slate-500">Your role is read-only for inventory changes.</p>
+          ) : null}
+        </section>
+      ) : null}
+      {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
       <div className="flex items-end gap-2">
         <button
           disabled={submitting}
@@ -201,6 +323,7 @@ export function SkuManager() {
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingSkuCode, setEditingSkuCode] = useState("");
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [error, setError] = useState<string | null>(null);
 
@@ -208,9 +331,11 @@ export function SkuManager() {
     queryKey: [...queryKeys.adminSkus, search, page],
     queryFn: () => fetchAdminSkus(search, page),
   });
-  const productsQuery = useQuery({
-    queryKey: queryKeys.adminProducts,
-    queryFn: () => fetchAdminProducts("", 1, 100),
+  const inventoryQuery = useQuery({
+    queryKey: ["inventory", "sku", editingSkuCode],
+    queryFn: () => fetchInventoryContext("", "", editingSkuCode),
+    enabled: Boolean(editingSkuCode),
+    refetchOnMount: "always",
   });
 
   async function refresh() {
@@ -218,15 +343,37 @@ export function SkuManager() {
       queryClient.invalidateQueries({ queryKey: queryKeys.adminSkus }),
       queryClient.invalidateQueries({ queryKey: queryKeys.adminProducts }),
       queryClient.invalidateQueries({ queryKey: queryKeys.products }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventoryContext() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventoryHistory }),
     ]);
   }
 
   const saveMutation = useMutation({
-    mutationFn: (payload: SkuUpsertRequest) =>
-      creating ? createAdminSku(payload) : updateAdminSku(editingId as string, payload),
+    mutationFn: async ({
+      payload,
+      adjustment,
+    }: {
+      payload: SkuUpsertRequest;
+      adjustment?: StockAdjustmentDraft;
+    }) => {
+      if (adjustment && editingId && inventoryQuery.data?.levels[0]) {
+        const level = inventoryQuery.data.levels[0];
+        await submitInventoryAdjustment({
+          inventoryLevelId: level.id,
+          reasonCode: adjustment.reasonCode,
+          deltaQty: Number.parseInt(adjustment.deltaQty, 10),
+          expectedVersion: level.expectedVersion,
+          idempotencyKey: crypto.randomUUID(),
+          note: adjustment.note.trim() || undefined,
+        });
+      }
+
+      return creating ? createAdminSku(payload) : updateAdminSku(editingId as string, payload);
+    },
     onSuccess: async () => {
       setCreating(false);
       setEditingId(null);
+      setEditingSkuCode("");
       setDraft(emptyDraft);
       setError(null);
       await refresh();
@@ -279,23 +426,17 @@ export function SkuManager() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">SKUs</h1>
+          <h2 className="text-2xl font-black tracking-tight">Inventory items</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Create SKUs separately and link them to multiple products.
+            Manage products, SKU details, prices, and images from the inventory workspace.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setCreating(true);
-            setEditingId(null);
-            setDraft(emptyDraft);
-            setError(null);
-          }}
+        <Link
+          href="/admin/products"
           className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white"
         >
-          New SKU link
-        </button>
+          Add variant from Products
+        </Link>
       </div>
 
       <label className="mt-6 block max-w-sm text-sm font-medium text-slate-700">
@@ -316,11 +457,12 @@ export function SkuManager() {
           <p className="mb-3 text-sm font-semibold text-sky-900">Create or link a SKU</p>
           <SkuEditForm
             draft={draft}
-            products={productsQuery.data?.products ?? []}
+            productName=""
             submitting={saveMutation.isPending}
             onChange={setDraft}
             onCancel={() => setCreating(false)}
-            onSubmit={(payload) => saveMutation.mutate(payload)}
+            onSubmit={(payload) => saveMutation.mutate({ payload })}
+            canAdjustInventory={false}
           />
         </div>
       ) : null}
@@ -368,6 +510,7 @@ export function SkuManager() {
                           onClick={() => {
                             setCreating(false);
                             setEditingId(sku.id);
+                            setEditingSkuCode(sku.sku);
                             setDraft(toDraft(sku));
                             setError(null);
                           }}
@@ -423,11 +566,18 @@ export function SkuManager() {
                     {editingId === sku.id ? (
                       <SkuEditForm
                         draft={draft}
-                        products={productsQuery.data?.products ?? []}
+                        productName={sku.productName}
                         submitting={saveMutation.isPending}
                         onChange={setDraft}
-                        onCancel={() => setEditingId(null)}
-                        onSubmit={(payload) => saveMutation.mutate(payload)}
+                        onCancel={() => {
+                          setEditingId(null);
+                          setEditingSkuCode("");
+                        }}
+                        onSubmit={(payload, adjustment) =>
+                          saveMutation.mutate({ payload, adjustment })
+                        }
+                        inventoryLevel={inventoryQuery.data?.levels[0]}
+                        canAdjustInventory={Boolean(inventoryQuery.data?.viewer.canAdjust)}
                       />
                     ) : null}
                   </td>
@@ -437,7 +587,10 @@ export function SkuManager() {
           </table>
         </div>
       )}
-      {!skusQuery.isLoading && !skusQuery.isError && skusQuery.data ? (
+      {!skusQuery.isLoading &&
+      !skusQuery.isError &&
+      skusQuery.data &&
+      (page > 1 || skusQuery.data.hasMore) ? (
         <div className="mt-6 flex items-center justify-between text-sm">
           <button
             type="button"

@@ -27,6 +27,13 @@ export async function fetchAdminSkus(
   return read<AdminSkuListResponse>(response, "Unable to load SKUs");
 }
 
+export async function fetchNextSku(): Promise<string> {
+  const response = await fetch("/api/admin/skus/next", { cache: "no-store" });
+  const data = await read<{ sku: string }>(response, "Unable to generate SKU");
+
+  return data.sku;
+}
+
 export async function createAdminSku(payload: SkuUpsertRequest): Promise<AdminSkuView> {
   const response = await fetch("/api/admin/skus", {
     method: "POST",

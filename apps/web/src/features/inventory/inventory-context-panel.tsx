@@ -337,14 +337,54 @@ export function InventoryContextPanel() {
   }
 
   return (
-    <div className="mt-4 space-y-3 rounded border border-gray-200 p-4">
-      <p className="text-sm text-gray-700">
-        Viewer role: <span className="font-medium">{context.viewer.role}</span>
-      </p>
-      <p className="text-sm text-gray-700">
-        Adjustment permissions: {context.viewer.canAdjust ? "enabled" : "read-only"}
-      </p>
-      <p className="text-sm text-gray-700">Loaded levels: {context.levels.length}</p>
+    <div className="mt-6 space-y-3">
+      <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+        <table className="w-full min-w-[680px] text-left text-sm">
+          <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <tr>
+              <th className="px-3 py-2 font-semibold">SKU</th>
+              <th className="px-3 py-2 font-semibold">Location</th>
+              <th className="px-3 py-2 text-right font-semibold">Unavailable</th>
+              <th className="px-3 py-2 text-right font-semibold">Committed</th>
+              <th className="px-3 py-2 text-right font-semibold">Available</th>
+              <th className="px-3 py-2 text-right font-semibold">Incoming</th>
+              <th className="px-3 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {visibleLevels.map((level) => (
+              <tr
+                key={level.id}
+                className={`border-t border-gray-100 ${selectedLevel?.id === level.id ? "bg-sky-50" : ""}`}
+              >
+                <td className="px-3 py-2 font-mono text-xs font-semibold text-gray-800">
+                  {level.sku}
+                </td>
+                <td className="px-3 py-2 text-gray-600">{level.locationId}</td>
+                <td className="px-3 py-2 text-right text-gray-600">0</td>
+                <td className="px-3 py-2 text-right text-gray-600">{level.reservedQty}</td>
+                <td className="px-3 py-2 text-right font-semibold text-gray-900">
+                  {level.availableQty}
+                </td>
+                <td className="px-3 py-2 text-right text-gray-600">{level.incomingQty}</td>
+                <td className="px-3 py-2 text-right">
+                  <button
+                    type="button"
+                    disabled={!context.viewer.canAdjust}
+                    onClick={() => {
+                      selectInventoryLevel(level);
+                      document.getElementById("delta-qty")?.focus();
+                    }}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Adjust
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <form
         aria-describedby="adjustment-help"

@@ -44,7 +44,7 @@ export function ProductCard({ product }: { product: ProductView }) {
           </Link>
           <span className="text-lg font-bold">{priceLabel(product)}</span>
         </div>
-        <p className="text-sm text-slate-600">{product.description}</p>
+        <p className="text-sm text-slate-600">{product.shortDescription || product.description}</p>
 
         {inStock.length === 0 ? (
           <p className="rounded-full bg-slate-100 px-4 py-2.5 text-center text-sm font-medium text-slate-500">

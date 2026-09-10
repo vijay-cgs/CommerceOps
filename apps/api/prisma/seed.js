@@ -267,9 +267,9 @@ async function seed() {
           inventoryBySku.get(sku) ?? {
             sku,
             locationId: "warehouse-main",
-            availableQty: 25,
+            availableQty: 0,
             reservedQty: 0,
-            incomingQty: 20,
+            incomingQty: 0,
             expectedVersion: 1,
           },
       ),

@@ -52,12 +52,6 @@ export function NavHeader() {
               >
                 Products
               </Link>
-              <Link
-                href="/admin/skus"
-                className="text-sm font-medium text-gray-700 hover:text-gray-900"
-              >
-                SKUs
-              </Link>
             </>
           )}
 

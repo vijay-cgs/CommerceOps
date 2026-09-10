@@ -30,8 +30,8 @@ async function forward(request: Request, path: string, method: string, hasBody: 
 }
 
 export async function GET(request: Request) {
-  const search = new URL(request.url).searchParams.get("search") ?? "";
-  return forward(request, search ? `?search=${encodeURIComponent(search)}` : "", "GET", false);
+  const query = new URL(request.url).search;
+  return forward(request, query, "GET", false);
 }
 
 export async function POST(request: Request) {

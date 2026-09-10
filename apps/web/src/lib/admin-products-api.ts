@@ -38,6 +38,14 @@ export async function fetchAdminProducts(
   return data;
 }
 
+export async function fetchAdminProduct(id: string): Promise<ProductView> {
+  const response = await fetch(`/api/admin/products/${encodeURIComponent(id)}`, {
+    cache: "no-store",
+  });
+
+  return readEnvelope<ProductView>(response, "Unable to load product");
+}
+
 export async function createAdminProduct(payload: ProductUpsertRequest): Promise<ProductView> {
   const response = await fetch("/api/admin/products", {
     method: "POST",

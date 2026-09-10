@@ -2,7 +2,7 @@ import { HttpException, HttpStatus } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import type { AdminSkuView, SkuUpsertRequest } from "@commerceops/types";
 import { prismaClient } from "../prisma/prisma.client";
-import { ensureInventoryLevelsForSkus } from "../inventory/inventory-helper";
+import { DEFAULT_LOCATION_ID, ensureInventoryLevelsForSkus } from "../inventory/inventory-helper";
 import type { SkuUpsertDto } from "./admin-skus.dto";
 
 type SkuRecord = Prisma.ProductVariantGetPayload<{
@@ -12,6 +12,19 @@ type SkuRecord = Prisma.ProductVariantGetPayload<{
     orderItems: { select: { id: true } };
   };
 }>;
+
+export async function getNextSkuCode(): Promise<string> {
+  const skuRecords = await prismaClient.sku.findMany({
+    where: { code: { startsWith: "SKU-" } },
+    select: { code: true },
+  });
+  const highestNumber = skuRecords.reduce((highest, record) => {
+    const match = /^SKU-(\d{6})$/.exec(record.code);
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0);
+
+  return `SKU-${String(highestNumber + 1).padStart(6, "0")}`;
+}
 
 function toSkuView(sku: SkuRecord, availableQty: number): AdminSkuView {
   return {
@@ -32,7 +45,7 @@ function toSkuView(sku: SkuRecord, availableQty: number): AdminSkuView {
 
 async function stockForSku(sku: string): Promise<number> {
   const result = await prismaClient.inventoryLevel.aggregate({
-    where: { sku },
+    where: { sku, locationId: DEFAULT_LOCATION_ID },
     _sum: { availableQty: true },
   });
 
@@ -96,7 +109,10 @@ export async function listSkus(
 
   const stock = await prismaClient.inventoryLevel.groupBy({
     by: ["sku"],
-    where: { sku: { in: records.map((record) => record.sku) } },
+    where: {
+      sku: { in: records.map((record) => record.sku) },
+      locationId: DEFAULT_LOCATION_ID,
+    },
     _sum: { availableQty: true },
   });
   const stockBySku = new Map(stock.map((level) => [level.sku, level._sum.availableQty ?? 0]));

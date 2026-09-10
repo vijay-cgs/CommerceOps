@@ -10,6 +10,7 @@ const backpack: ProductView = {
   slug: "aerolite-backpack",
   name: "AeroLite Backpack",
   description: "A backpack",
+  shortDescription: "A compact everyday backpack",
   tag: "Best seller",
   category: "Travel",
   accent: "from-sky-500 to-cyan-500",
