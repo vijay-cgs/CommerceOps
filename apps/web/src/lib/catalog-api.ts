@@ -48,6 +48,14 @@ export async function fetchProducts(): Promise<ProductView[]> {
   return data.products;
 }
 
+export async function fetchProduct(slug: string): Promise<ProductView> {
+  const response = await fetch(`/api/products/${encodeURIComponent(slug)}`, {
+    cache: "no-store",
+  });
+
+  return readEnvelope<ProductView>(response, "Unable to load product");
+}
+
 export async function submitOrder(request: PlaceOrderRequest): Promise<OrderView> {
   const response = await fetch("/api/orders", {
     method: "POST",

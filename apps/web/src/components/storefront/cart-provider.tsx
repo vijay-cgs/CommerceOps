@@ -82,6 +82,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     queryKey: queryKeys.products,
     queryFn: fetchProducts,
     staleTime: 60_000,
+    enabled: hydrated && entries.length > 0,
   });
 
   // Read after mount so the server and first client render agree.

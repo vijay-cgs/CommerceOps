@@ -3,18 +3,19 @@
 import { notFound, useParams } from "next/navigation";
 import { ProductDetailView } from "../../../components/storefront/product-detail-view";
 import { useQuery } from "@tanstack/react-query";
-import { fetchProducts } from "../../../lib/catalog-api";
-import { queryKeys } from "../../../lib/query-keys";
+import { fetchProduct, StorefrontApiError } from "../../../lib/catalog-api";
 
 export default function ProductDetailPage() {
   const params = useParams<{ slug: string }>();
   const {
-    data: products,
+    data: product,
     isLoading,
     isError,
+    error,
   } = useQuery({
-    queryKey: queryKeys.products,
-    queryFn: fetchProducts,
+    queryKey: ["catalog", "product", params?.slug],
+    queryFn: () => fetchProduct(params.slug),
+    enabled: Boolean(params?.slug),
   });
 
   if (isLoading) {
@@ -26,14 +27,16 @@ export default function ProductDetailPage() {
   }
 
   if (isError) {
+    if (error instanceof StorefrontApiError && error.code === "product_not_found") {
+      notFound();
+    }
+
     return (
       <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
         <p className="mx-auto max-w-6xl text-red-700">We could not load this product.</p>
       </main>
     );
   }
-
-  const product = products?.find((candidate) => candidate.slug === params?.slug);
 
   if (!product) {
     notFound();
