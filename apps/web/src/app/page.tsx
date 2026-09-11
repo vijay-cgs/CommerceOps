@@ -33,19 +33,19 @@ export default function HomePage() {
               Shop now
             </Link>
             {!auth ? (
-              <Link
+              <a
                 href="/register"
                 className="rounded-full border border-slate-300 bg-white px-6 py-3 font-medium text-slate-800"
               >
                 Create an account
-              </Link>
+              </a>
             ) : canAccessInventory(auth.role) ? (
-              <Link
-                href="/inventory"
+              <a
+                href="/admin/inventory"
                 className="rounded-full border border-slate-300 bg-white px-6 py-3 font-medium text-slate-800"
               >
                 View inventory
-              </Link>
+              </a>
             ) : null}
           </div>
           <div className="mt-10 flex items-center gap-8 text-sm text-slate-600">

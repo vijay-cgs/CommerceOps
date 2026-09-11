@@ -431,12 +431,12 @@ export function SkuManager() {
             Manage products, SKU details, prices, and images from the inventory workspace.
           </p>
         </div>
-        <Link
+        <a
           href="/admin/products"
           className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white"
         >
           Add variant from Products
-        </Link>
+        </a>
       </div>
 
       <label className="mt-6 block max-w-sm text-sm font-medium text-slate-700">

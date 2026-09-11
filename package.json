@@ -6,6 +6,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:mfe": "turbo run dev --filter=@commerceops/web --filter=@commerceops/storefront --filter=@commerceops/admin",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "lint": "turbo run lint",

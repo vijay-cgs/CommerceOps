@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ProductUpsertRequest, ProductView } from "@commerceops/types";
 import {
@@ -24,6 +24,8 @@ const STATUS_STYLES: Record<string, string> = {
 
 export function ProductManager() {
   const router = useRouter();
+  // Resolved from the current path so the admin zone and the shell both navigate correctly.
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -209,7 +211,7 @@ export function ProductManager() {
                   <button
                     type="button"
                     onClick={() => {
-                      router.push(`/admin/products/${product.id}`);
+                      router.push(`${pathname}/${product.id}`);
                     }}
                     className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                   >

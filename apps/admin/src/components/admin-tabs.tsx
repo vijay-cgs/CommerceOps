@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// Hrefs are zone-relative; Next prefixes them with the /admin basePath.
 const tabs = [
-  { href: "/admin/products", label: "Products" },
-  { href: "/admin/inventory", label: "Inventory" },
+  { href: "/products", label: "Products" },
+  { href: "/inventory", label: "Inventory" },
 ];
 
 export function AdminTabs() {

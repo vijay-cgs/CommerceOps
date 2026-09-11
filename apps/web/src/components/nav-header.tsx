@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "./storefront/cart-provider";
 import { useAuthUser } from "./providers/auth-provider";
@@ -19,49 +18,49 @@ export function NavHeader() {
   return (
     <header className="border-b border-gray-200 bg-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-xl font-bold tracking-tight">
+        <a href="/" className="text-xl font-bold tracking-tight">
           CommerceOps
-        </Link>
+        </a>
 
         <nav className="flex items-center gap-6">
-          <Link href="/products" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+          <a href="/products" className="text-sm font-medium text-gray-700 hover:text-gray-900">
             Shop
-          </Link>
+          </a>
 
           {auth && (
-            <Link href="/orders" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+            <a href="/orders" className="text-sm font-medium text-gray-700 hover:text-gray-900">
               Orders
-            </Link>
+            </a>
           )}
 
           {/* Show inventory link only when user has appropriate role */}
           {auth && canAccessInventory(auth.role) && (
-            <Link
-              href="/inventory"
+            <a
+              href="/admin/inventory"
               className="text-sm font-medium text-gray-700 hover:text-gray-900"
             >
               Inventory
-            </Link>
+            </a>
           )}
 
           {auth && canManageProducts(auth.role) && (
             <>
-              <Link
+              <a
                 href="/admin/products"
                 className="text-sm font-medium text-gray-700 hover:text-gray-900"
               >
                 Products
-              </Link>
+              </a>
             </>
           )}
 
           <div className="flex items-center gap-4">
-            <Link
+            <a
               href="/cart"
               className="rounded bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
             >
               Cart ({itemCount})
-            </Link>
+            </a>
 
             {auth ? (
               <>
@@ -80,18 +79,15 @@ export function NavHeader() {
               </>
             ) : (
               <>
-                <Link
-                  href="/login"
-                  className="text-sm font-medium text-gray-700 hover:text-gray-900"
-                >
+                <a href="/login" className="text-sm font-medium text-gray-700 hover:text-gray-900">
                   Sign in
-                </Link>
-                <Link
+                </a>
+                <a
                   href="/register"
                   className="rounded bg-gray-900 px-3 py-2 text-sm text-white hover:bg-gray-800"
                 >
                   Register
-                </Link>
+                </a>
               </>
             )}
           </div>
